@@ -36,16 +36,18 @@ verification/*/Dependencies.toml
 # version control": Config.toml can carry dev-time secrets, and
 # trace_enabled.bal just toggles local tracing. .vscode/ is BI's launch
 # config for the same, equally local to whoever's debugging.
-# connections.bal wires an ai:Wso2ModelProvider this repo's real
-# deployments (local process, Docker) never configure — this repo uses
-# ANTHROPIC_API_KEY directly instead — and if it leaks into a Docker
-# build (orchestrator/.dockerignore excludes it for that reason too) the
-# container crashes on startup with "ballerina.ai.wso2ProviderConfig is
-# not configured correctly".
 Config.toml
 trace_enabled.bal
-connections.bal
 .vscode/
+
+# connections.bal is intentionally tracked (not ignored): it's just the
+# ai:Wso2ModelProvider wiring BI generates, and committing it means a
+# fresh checkout works with BI without regenerating it. It still must
+# never reach the orchestrator's Docker build — that deployment uses
+# ANTHROPIC_API_KEY directly instead, and if this file leaks into the
+# build context (orchestrator/.dockerignore excludes it for that reason)
+# the container crashes on startup with "ballerina.ai.wso2ProviderConfig
+# is not configured correctly".
 
 # macOS
 .DS_Store
