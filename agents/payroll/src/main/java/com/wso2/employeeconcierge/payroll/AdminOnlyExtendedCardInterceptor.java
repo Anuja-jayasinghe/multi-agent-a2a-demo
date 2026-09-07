@@ -1,5 +1,7 @@
 package com.wso2.employeeconcierge.payroll;
 
+import io.grpc.Context;
+import io.grpc.Contexts;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
@@ -31,26 +33,49 @@ public class AdminOnlyExtendedCardInterceptor implements ServerInterceptor {
   private static final Metadata.Key<String> AUTHORIZATION =
       Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER);
 
+  /**
+   * Whether the call being served presented a valid admin token.
+   *
+   * <p>Published for every RPC, not just the extended-card one, so an
+   * admin-only <em>action</em> can be authorized where it actually runs.
+   * Hiding a skill from the unauthenticated card only controls whether it
+   * is advertised; anyone who knows the skill exists can still ask for it,
+   * and spec section 13.1 requires the server to authorize every request.
+   * A gRPC Context key rather than a field because one interceptor
+   * instance serves concurrent calls.
+   */
+  public static final Context.Key<Boolean> ADMIN_AUTHENTICATED =
+      Context.key("payroll-admin-authenticated");
+
   @ConfigProperty(name = "payroll.admin-token")
   String adminToken;
+
+  /** Whether the call currently being served is admin-authenticated. */
+  public static boolean isAdminAuthenticated() {
+    return Boolean.TRUE.equals(ADMIN_AUTHENTICATED.get());
+  }
 
   @Override
   public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
       final ServerCall<ReqT, RespT> call, final Metadata headers,
       final ServerCallHandler<ReqT, RespT> next) {
-    String fullMethod = call.getMethodDescriptor().getFullMethodName();
-    String extendedCardMethod = A2AServiceGrpc.getGetExtendedAgentCardMethod().getFullMethodName();
-    if (!fullMethod.equals(extendedCardMethod)) {
-      return next.startCall(call, headers);
-    }
-
     String expected = "Bearer " + adminToken;
     String actual = headers.get(AUTHORIZATION);
-    if (adminToken.isEmpty() || actual == null || !actual.equals(expected)) {
+    boolean admin = !adminToken.isEmpty() && actual != null && actual.equals(expected);
+
+    String fullMethod = call.getMethodDescriptor().getFullMethodName();
+    String extendedCardMethod = A2AServiceGrpc.getGetExtendedAgentCardMethod().getFullMethodName();
+    if (fullMethod.equals(extendedCardMethod) && !admin) {
       call.close(Status.PERMISSION_DENIED.withDescription(
           "GetExtendedAgentCard requires a valid admin bearer token"), new Metadata());
       return new ServerCall.Listener<>() { };
     }
-    return next.startCall(call, headers);
+
+    // Every other RPC proceeds regardless -- the public skills really are
+    // public. What changes is that the answer is carried forward, so
+    // adjustOtherEmployeePayroll can refuse on its own rather than relying
+    // on the caller never having heard of it.
+    Context ctx = Context.current().withValue(ADMIN_AUTHENTICATED, admin);
+    return Contexts.interceptCall(ctx, call, headers, next);
   }
 }

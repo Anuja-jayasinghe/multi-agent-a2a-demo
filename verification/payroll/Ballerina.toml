@@ -14,3 +14,9 @@ repository = "local"
 org = "ballerina"
 name = "http"
 version = "2.14.13"
+
+# Pinned — see verification/extended_card_auth/Ballerina.toml for why.
+[[dependency]]
+org = "ballerina"
+name = "grpc"
+version = "1.14.7"

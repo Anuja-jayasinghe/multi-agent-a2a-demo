@@ -24,6 +24,7 @@ public class PayrollTools {
   }
 
   private final AtomicInteger nextCorrectionId = new AtomicInteger(1000);
+  private final AtomicInteger nextAdjustmentId = new AtomicInteger(9000);
   private final Map<String, Correction> corrections = new ConcurrentHashMap<>();
 
   // Not an LLM @Tool -- filing is executor-driven (same shape as Parking's
@@ -74,5 +75,32 @@ public class PayrollTools {
     String reference = "TAXDOC-" + employeeName.replaceAll("\\s+", "").toUpperCase() + "-" + year;
     return "Tax document request " + reference + " filed for " + employeeName + " (" + year
         + "). It will be available on the HR portal within 3 working days.";
+  }
+
+  /** Real, in-memory record of admin payroll adjustments actually applied. */
+  private final Map<String, String> adjustments = new ConcurrentHashMap<>();
+
+  @Tool("Adjusts another employee's payroll figure. Admin-only: refuses unless the caller "
+      + "presented a valid admin token.")
+  public String adjustOtherEmployeePayroll(
+      final String employeeName, final String field, final String newValue) {
+    // The real gate. The extended card only controls whether this skill is
+    // *advertised*; spec section 13.1 requires the server to authorize
+    // every request, so visibility must not be what protects it. A caller
+    // who already knows this skill exists reaches here regardless, which
+    // is exactly the case this check exists for.
+    if (!AdminOnlyExtendedCardInterceptor.isAdminAuthenticated()) {
+      return "DENIED: adjusting another employee's payroll is admin-only, and this request "
+          + "carried no valid admin token. No change was made.";
+    }
+    String reference = "ADJ-" + (nextAdjustmentId.getAndIncrement());
+    adjustments.put(reference, employeeName + ":" + field + "=" + newValue);
+    return "Adjustment " + reference + " applied: " + field + " set to " + newValue + " for "
+        + employeeName + ".";
+  }
+
+  /** How many adjustments were actually applied -- used by verification. */
+  public int appliedAdjustmentCount() {
+    return adjustments.size();
   }
 }

@@ -46,6 +46,12 @@ public interface PayrollAgent {
       their name. When they need a tax document (e.g. an annual tax
       certificate), call requestTaxDocument with their name and the year.
 
+      When asked to adjust *another* employee's payroll, call
+      adjustOtherEmployeePayroll with that employee's name, the field, and
+      the new value. It is admin-only and enforces that itself -- if it
+      replies beginning "DENIED", report that refusal plainly and do not
+      claim any change was made.
+
       For general payroll questions, answer directly from the reference
       facts above — do not call a tool.
 
