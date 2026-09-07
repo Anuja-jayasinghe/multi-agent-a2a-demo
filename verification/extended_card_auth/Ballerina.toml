@@ -1,0 +1,28 @@
+[package]
+org = "employee_concierge"
+name = "verify_extended_card_auth"
+version = "0.1.0"
+distribution = "2201.13.5"
+
+[[dependency]]
+org = "ballerina"
+name = "a2a"
+version = "0.2.1"
+repository = "local"
+
+[[dependency]]
+org = "ballerina"
+name = "http"
+version = "2.14.13"
+
+# Pinned deliberately. ballerina/a2a's gRPC binding and ballerina/http are
+# ABI-coupled (ballerina-platform/ballerina-library#2496): left to resolve
+# freshly, this package picks up grpc 1.15.0 against http 2.14.13 and dies
+# at startup with an IllegalAccessError out of http's own log manager,
+# before a single line of this package runs. 1.14.7 is the version the
+# orchestrator's own committed Dependencies.toml pins, and the pair is
+# known good. Always run this package with --sticky.
+[[dependency]]
+org = "ballerina"
+name = "grpc"
+version = "1.14.7"
