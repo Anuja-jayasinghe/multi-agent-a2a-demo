@@ -11,6 +11,7 @@ from tools import (
     assign_desk,
     check_onboarding_status,
     enroll_benefits,
+    escalate_case,
     file_leave_request,
     provision_laptop,
     revoke_desk,
@@ -69,7 +70,11 @@ class PeopleOperationsAgent:
         'When an employee wants to take leave, call file_leave_request with '
         'their name, a start date, an end date, and a short reason. If they '
         'have not given you concrete dates, ask for them — do not invent '
-        'dates.\n'
+        'dates.\n\n'
+        'When asked to escalate a sensitive HR case, call escalate_case with '
+        'the employee name and a short summary. It is staff-only and enforces '
+        'that itself — if it returns status "denied", report that refusal to '
+        'the user plainly and do not claim the case was escalated.\n'
         + _HR_CONTEXT
     )
 
@@ -95,6 +100,7 @@ class PeopleOperationsAgent:
             terminate_benefits,
             check_onboarding_status,
             file_leave_request,
+            escalate_case,
         ]
         self.graph = create_react_agent(
             self.model,

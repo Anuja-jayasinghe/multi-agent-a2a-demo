@@ -6,6 +6,7 @@ extended card genuinely differs for an authenticated vs. unauthenticated
 caller, verified by hitting getExtendedAgentCard both ways.
 """
 
+import contextvars
 import os
 
 from starlette.requests import Request
@@ -15,6 +16,20 @@ from a2a.server.routes.common import DefaultServerCallContextBuilder
 from a2a.types import AgentCard
 
 _STAFF_TOKEN_ENV = 'PEOPLEOPS_STAFF_TOKEN'
+
+# Whether the request currently being served carried a valid staff token.
+#
+# Set by the executor from ServerCallContext at the start of every
+# execute(), and read by the staff-only tool. A ContextVar rather than a
+# module global because requests are served concurrently on one event
+# loop — a global would let one caller's auth state leak into another's.
+#
+# This exists because the tool needs the caller's identity but LangChain
+# tools are invoked by the model, not by us, so there is no call site to
+# thread an argument through.
+staff_authenticated: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    'staff_authenticated', default=False
+)
 
 
 class _StaffUser(User):
