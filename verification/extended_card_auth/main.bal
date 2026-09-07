@@ -53,6 +53,48 @@ function skip_(string description, string reason) {
     skipped += 1;
 }
 
+# Sends one message and returns every piece of text the agent replied
+# with, wherever it put it.
+#
+# An agent may answer in a status message (when it needs more from the
+# caller) or in an artifact (when it finished), so both are collected —
+# asserting against only one of them would pass or fail for the wrong
+# reason depending on how the request happened to resolve.
+#
+# + agent - the client to send through
+# + text - the request to send
+# + return - the concatenated reply text, or an error if the call failed
+function replyText(a2a:Client agent, string text) returns string|error {
+    a2a:Message request = {
+        messageId: uuid:createType4AsString(),
+        role: a2a:ROLE_USER,
+        parts: [{text: text}]
+    };
+    a2a:Task|a2a:Message reply = check agent->sendMessage(request);
+    if reply is a2a:Message {
+        return reply.parts.toString();
+    }
+    a2a:Task task = <a2a:Task>reply;
+    string collected = "";
+    a2a:Message? statusMessage = task.status?.message;
+    if statusMessage is a2a:Message {
+        collected += statusMessage.parts.toString();
+    }
+    foreach a2a:Artifact artifact in task.artifacts {
+        collected += artifact.parts.toString();
+    }
+    return collected;
+}
+
+# Shortens a reply for single-line reporting.
+#
+# + value - the text to shorten
+# + return - the text, truncated if long
+function trim(string value) returns string {
+    string flat = re `\n`.replaceAll(value, " ");
+    return flat.length() <= 110 ? flat : flat.substring(0, 110) + "...";
+}
+
 public function main() returns error? {
     io:println("=== Extended card auth — real ballerina/a2a use case ===\n");
 
@@ -239,6 +281,33 @@ public function main() returns error? {
                 "no usable ANTHROPIC_API_KEY, so the agent returns no Task; " +
                 "both helpers are unit-tested in the library itself");
     }
+
+    // ----------------------------------------------------------------
+    // 8. The gate that actually matters: invoking the guarded skill.
+    //    Card gating only controls whether the skill is *advertised* —
+    //    spec section 13.1 requires the server to authorize the request
+    //    itself, so this asks for the skill by name from both sides.
+    // ----------------------------------------------------------------
+    io:println("\n-- 8. Invoking the guarded skill, with and without the credential --");
+    string escalationRequest =
+            "Escalate a grievance for Nadia Perera to a case manager. Summary: repeated payroll errors.";
+
+    string anonReply = check replyText(anonymous, escalationRequest);
+    boolean anonRefused = !anonReply.toLowerAscii().includes("successfully escalated")
+        && (anonReply.toLowerAscii().includes("staff-only")
+            || anonReply.toLowerAscii().includes("staff only")
+            || anonReply.toLowerAscii().includes("credential")
+            || anonReply.toLowerAscii().includes("unable")
+            || anonReply.toLowerAscii().includes("denied"));
+    check_(anonRefused,
+            "an unauthenticated caller asking for the guarded skill by name is refused",
+            trim(anonReply));
+
+    string staffReply = check replyText(staff, escalationRequest);
+    check_(staffReply.toLowerAscii().includes("escalat")
+                && !staffReply.toLowerAscii().includes("staff-only"),
+            "the same request succeeds for an authenticated caller",
+            trim(staffReply));
 
     // ----------------------------------------------------------------
     io:println("");
