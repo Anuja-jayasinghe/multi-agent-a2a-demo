@@ -10,6 +10,9 @@ from a2a.types import (
     AgentCard,
     AgentInterface,
     AgentSkill,
+    HTTPAuthSecurityScheme,
+    SecurityRequirement,
+    SecurityScheme,
 )
 from starlette.applications import Starlette
 
@@ -24,6 +27,29 @@ from auth import BearerTokenContextBuilder, extended_card_modifier
 BIND_HOST = os.getenv('A2A_BIND_HOST', '127.0.0.1')
 ADVERTISED_HOST = os.getenv('A2A_ADVERTISED_HOST', '127.0.0.1')
 PORT = 8002
+
+STAFF_SCHEME = 'bearer-staff'
+
+# The credential BearerTokenContextBuilder (auth.py) actually checks, now
+# declared rather than left as out-of-band knowledge. Without this a client
+# can see that case-escalation exists but has no way to learn what unlocks
+# it -- the A2A spec's answer to "which credential?" is exactly this
+# securitySchemes/securityRequirements pair, and serving neither forces
+# callers to guess.
+SECURITY_SCHEMES = {
+    STAFF_SCHEME: SecurityScheme(
+        http_auth_security_scheme=HTTPAuthSecurityScheme(
+            scheme='Bearer',
+            description='Staff bearer token. Unlocks the extended card and its staff-only skills.',
+        )
+    )
+}
+
+# Card-level: this agent understands the staff token on every request --
+# BearerTokenContextBuilder runs for all JSON-RPC routes, not just the
+# extended-card one. It is not a hard gate; the public skills answer
+# unauthenticated, and the extended card downgrades rather than rejecting.
+STAFF_REQUIREMENT = [SecurityRequirement(schemes={STAFF_SCHEME: {'list': []}})]
 
 if __name__ == '__main__':
     skills = [
@@ -61,6 +87,8 @@ if __name__ == '__main__':
                 protocol_version='1.0',
             )
         ],
+        security_schemes=SECURITY_SCHEMES,
+        security_requirements=STAFF_REQUIREMENT,
         skills=skills,
     )
 
@@ -72,6 +100,10 @@ if __name__ == '__main__':
             description='Escalates a sensitive HR case for staff follow-up. Staff-only.',
             tags=['hr', 'staff-only'],
             examples=['escalate this grievance to a case manager'],
+            # Skill-level, not just card-level: this is the one skill that
+            # genuinely needs the staff token, so a client can discover
+            # that from the card instead of being told out of band.
+            security_requirements=STAFF_REQUIREMENT,
         ),
     ]
     extended_agent_card = AgentCard(
@@ -92,6 +124,8 @@ if __name__ == '__main__':
                 protocol_version='1.0',
             )
         ],
+        security_schemes=SECURITY_SCHEMES,
+        security_requirements=STAFF_REQUIREMENT,
         skills=extended_skills,
     )
 

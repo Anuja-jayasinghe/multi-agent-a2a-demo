@@ -60,5 +60,11 @@ async def extended_card_modifier(card: AgentCard, context: ServerCallContext) ->
         default_output_modes=list(card.default_output_modes),
         capabilities=card.capabilities,
         supported_interfaces=list(card.supported_interfaces),
+        # Carried over deliberately: an unauthenticated caller still needs
+        # to see *which* credential would unlock more, or the downgrade
+        # tells it nothing actionable. Rebuilding field-by-field silently
+        # drops anything not named here, so these two are easy to lose.
+        security_schemes=dict(card.security_schemes),
+        security_requirements=list(card.security_requirements),
         skills=[s for s in card.skills if s.id != 'case-escalation'],
     )
