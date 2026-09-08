@@ -17,10 +17,14 @@
 # agents still boot and serve their cards correctly, but real requests
 # fail gracefully.
 #
-# PAYROLL_ADMIN_TOKEN and PEOPLEOPS_STAFF_TOKEN default to the same demo
-# values verification/payroll and verification/peopleoperations already
-# hardcode, so running those scripts against a system brought up this way
-# just works. Set either in .env too to use a real secret instead.
+# PAYROLL_ADMIN_TOKEN and PEOPLEOPS_STAFF_TOKEN come from .env, with no
+# fallback if left unset. Without one, that agent's extended-card gating
+# (Payroll's AdminOnlyExtendedCardInterceptor, PeopleOperations'
+# BearerTokenContextBuilder) stays permanently closed -- neither has a
+# hardcoded value to fall back to either, so there is no credential that
+# will work until one is set. Everything else -- public skills, ordinary
+# chat, the orchestrator's own routing -- is unaffected; only the
+# extended-card demo needs a real value here.
 #
 # ONBOARDING_STEP_DELAY_SECONDS, OFFBOARDING_STEP_DELAY_SECONDS
 # (peopleoperations) and HARDWARE_PROVISIONING_STEP_DELAY_SECONDS
@@ -45,9 +49,17 @@ if [ -f "$ROOT_DIR/.env" ]; then
     set +a
 fi
 
-: "${PAYROLL_ADMIN_TOKEN:=demo-payroll-admin-secret}"
-: "${PEOPLEOPS_STAFF_TOKEN:=demo-staff-secret}"
+: "${PAYROLL_ADMIN_TOKEN:=}"
+: "${PEOPLEOPS_STAFF_TOKEN:=}"
 export PAYROLL_ADMIN_TOKEN PEOPLEOPS_STAFF_TOKEN
+
+if [ -z "$PAYROLL_ADMIN_TOKEN" ] || [ -z "$PEOPLEOPS_STAFF_TOKEN" ]; then
+    echo "Note: PAYROLL_ADMIN_TOKEN and/or PEOPLEOPS_STAFF_TOKEN is unset." >&2
+    echo "That agent's extended-card auth gating will stay closed to every" >&2
+    echo "caller -- set it in .env to test case-escalation or" >&2
+    echo "adjust-other-employee-payroll. Nothing else is affected." >&2
+    echo >&2
+fi
 
 wait_for() {
     local name="$1" url="$2" attempts=0

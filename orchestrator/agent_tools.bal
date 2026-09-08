@@ -30,38 +30,51 @@ type KnownAgent record {|
     string name;
     string url;
     // The scheme name this agent's own AgentCard declares for its
-    // extended-card gating, paired with the credential to present for it
-    // -- () for the three agents that declare no extended-card auth at
-    // all. The credential comes from the exact same env var the agent
-    // itself reads server-side (PAYROLL_ADMIN_TOKEN in
-    // application.properties, PEOPLEOPS_STAFF_TOKEN in auth.py), so client
-    // and server always agree without either hardcoding the other's
-    // value, and rotating a token means changing one env var, not two
-    // source files. Previously a literal `{"Authorization": "Bearer ..."}`
-    // header map; now the scheme name lets a2a:CredentialProvider resolve
-    // it from the card itself, the same client-side mechanism
-    // ballerina/a2a now ships (see PR #59) -- this is that mechanism's
-    // first real caller, not a parallel one.
-    // Tuple: [schemeName, credential].
-    [string, string]? extendedCardCredential?;
+    // extended-card gating, paired with the env var the actual credential
+    // is read from -- () for the three agents that declare no
+    // extended-card auth at all. Deliberately not the credential's value:
+    // that would mean baking a fallback secret in here (removed on
+    // purpose -- see below), and it would go stale the moment someone
+    // rotated the token without restarting the orchestrator. Reading
+    // os:getEnv(envVarName) fresh in extendedCardComparison instead means
+    // there is exactly one string literal for each demo secret in the
+    // whole repo now: none. Same env var name the agent itself reads
+    // server-side (PAYROLL_ADMIN_TOKEN in application.properties,
+    // PEOPLEOPS_STAFF_TOKEN in auth.py), so client and server always agree
+    // without either hardcoding the other's value.
+    //
+    // No fallback if the env var is unset: this used to default to
+    // "demo-staff-secret"/"demo-payroll-admin-secret", the same fixed
+    // strings the agents themselves used to default to before adopting
+    // real env-var checks. Two independently-hardcoded copies of the same
+    // secret happening to match is not the same as an env var actually
+    // being read -- it just meant nobody would notice if the two drifted.
+    // Removed to make that failure loud instead: with no credential
+    // configured, extendedCardComparison says so explicitly rather than
+    // silently presenting a guess.
+    //
+    // Tuple: [schemeName, credentialEnvVarName].
+    [string, string]? extendedCardScheme?;
 |};
 
 // Local-process defaults (127.0.0.1); each is overridable via its own env
 // var to the real Docker Compose service name (e.g. "http://parking:8000")
 // in containerized deployment, since 127.0.0.1 inside a container refers
-// to that container itself, not a sibling one.
+// to that container itself, not a sibling one. These are endpoints, not
+// secrets, so defaulting them carries none of the risk defaulting a
+// credential does.
 final KnownAgent[] & readonly knownAgents = [
     {name: "Parking", url: envOrDefault("PARKING_URL", "http://127.0.0.1:8000")},
     {name: "DigiOps", url: envOrDefault("DIGIOPS_URL", "http://127.0.0.1:8001")},
     {
         name: "PeopleOperations",
         url: envOrDefault("PEOPLEOPS_URL", "http://127.0.0.1:8002"),
-        extendedCardCredential: ["bearer-staff", envOrDefault("PEOPLEOPS_STAFF_TOKEN", "demo-staff-secret")]
+        extendedCardScheme: ["bearer-staff", "PEOPLEOPS_STAFF_TOKEN"]
     },
     {
         name: "Payroll",
         url: envOrDefault("PAYROLL_URL", "http://127.0.0.1:8003"),
-        extendedCardCredential: ["bearer-admin", envOrDefault("PAYROLL_ADMIN_TOKEN", "demo-payroll-admin-secret")]
+        extendedCardScheme: ["bearer-admin", "PAYROLL_ADMIN_TOKEN"]
     },
     {name: "TravelExpense", url: envOrDefault("TRAVEL_EXPENSE_URL", "http://127.0.0.1:8004")}
 ];
@@ -216,14 +229,15 @@ isolated function skillIdsOf(a2a:AgentCard card) returns string {
 
 // Proves extended-card auth gating in one call instead of two: fetches the
 // card once with no credential and, only when this agent genuinely declares
-// one (Payroll, PeopleOperations), once more with its real demo credential,
-// then reports the skill-count difference -- the same comparison
-// verification/payroll and verification/peopleoperations already make from
-// a terminal, just reachable from chat now too.
+// one (Payroll, PeopleOperations) and a real credential is actually
+// configured for it, once more authenticated, then reports the skill-count
+// difference -- the same comparison verification/payroll and
+// verification/peopleoperations already make from a terminal, just
+// reachable from chat too.
 //
 // The authenticated fetch goes through a2a:CredentialProvider rather than
 // a hand-built header: the credential is filed under the scheme name
-// known.extendedCardCredential carries, and the client resolves it against
+// known.extendedCardScheme carries, and the client resolves it against
 // that agent's own declared securitySchemes -- the same card-driven
 // discovery a caller with no prior knowledge of "Authorization: Bearer"
 // would go through, not a shortcut past it.
@@ -232,15 +246,29 @@ isolated function extendedCardComparison(string agentName) returns string|error 
     a2a:Client plainClient = check getAgentClient(agentName);
     a2a:AgentCard|error unauthCard = plainClient->getExtendedAgentCard();
 
-    [string, string]? cred = known?.extendedCardCredential;
-    if cred is () {
+    [string, string]? scheme = known?.extendedCardScheme;
+    if scheme is () {
         if unauthCard is error {
             return string `${agentName} does not declare extended-card auth gating, and its extended card fetch failed anyway: ${unauthCard.message()}`;
         }
         return string `${agentName} declares no extended-card auth gating -- its public card already has ${unauthCard.skills.length()} skill(s): ${skillIdsOf(unauthCard)}`;
     }
 
-    [string, string] [schemeName, credential] = cred;
+    [string, string] [schemeName, credentialEnvVar] = scheme;
+    string credential = os:getEnv(credentialEnvVar);
+    if credential == "" {
+        // Deliberately not silently substituted with a hardcoded demo
+        // value -- see KnownAgent's own comment for why. This state is
+        // real and worth reporting plainly rather than hiding behind a
+        // fallback that used to make it look configured when it wasn't.
+        string unauthDesc = unauthCard is error
+            ? string `rejected outright (${unauthCard.message()})`
+            : string `${unauthCard.skills.length()} skill(s): ${skillIdsOf(unauthCard)}`;
+        return string `${agentName} declares extended-card auth gating (scheme "${schemeName}"), ` +
+            string `but no credential is configured -- set ${credentialEnvVar} in .env and restart ` +
+            string `both the agent and the orchestrator to test it. Unauthenticated: ${unauthDesc}.`;
+    }
+
     a2a:InMemoryCredentialStore store = new ({[schemeName]: credential});
     a2a:Client authedClient = check new (known.url, credentials = store);
     a2a:AgentCard authedCard = check authedClient->getExtendedAgentCard();

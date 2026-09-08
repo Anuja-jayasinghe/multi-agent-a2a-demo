@@ -23,8 +23,17 @@ if [ -f "$ROOT_DIR/.env" ]; then
     set +a
 fi
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
-: "${PAYROLL_ADMIN_TOKEN:=demo-payroll-admin-secret}"
-: "${PEOPLEOPS_STAFF_TOKEN:=demo-staff-secret}"
+: "${PAYROLL_ADMIN_TOKEN:=}"
+: "${PEOPLEOPS_STAFF_TOKEN:=}"
+# No fallback for either: without a real value, that agent's extended-card
+# auth gating (Payroll's AdminOnlyExtendedCardInterceptor, PeopleOperations'
+# BearerTokenContextBuilder) stays permanently closed to every caller --
+# set it in .env to test case-escalation or adjust-other-employee-payroll.
+# Everything else -- public skills, ordinary chat -- is unaffected.
+if [ -z "$PAYROLL_ADMIN_TOKEN" ] || [ -z "$PEOPLEOPS_STAFF_TOKEN" ]; then
+    echo "Note: PAYROLL_ADMIN_TOKEN and/or PEOPLEOPS_STAFF_TOKEN is unset -- see above." >&2
+    echo >&2
+fi
 
 # Writes a small runner script per agent (values baked in, since a new
 # Terminal window starts a fresh shell that doesn't inherit this
