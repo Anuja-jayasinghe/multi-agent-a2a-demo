@@ -9,6 +9,7 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.quarkus.grpc.GlobalInterceptor;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Optional;
 import org.a2aproject.sdk.grpc.A2AServiceGrpc;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -47,8 +48,20 @@ public class AdminOnlyExtendedCardInterceptor implements ServerInterceptor {
   public static final Context.Key<Boolean> ADMIN_AUTHENTICATED =
       Context.key("payroll-admin-authenticated");
 
+  // Optional<String>, not a plain String with an empty defaultValue --
+  // tried that first, and MicroProfile Config treats an empty default the
+  // same as no default at all (confirmed empirically: both a bare
+  // ${PAYROLL_ADMIN_TOKEN:} expression in application.properties and
+  // @ConfigProperty(defaultValue = "") threw the identical "Failed to
+  // load config value" at startup the moment PAYROLL_ADMIN_TOKEN was
+  // genuinely unset -- not deny access, the whole app failing to boot).
+  // Optional<T> injection is the spec's actual mechanism for a property
+  // that may legitimately be absent; it resolves to empty rather than
+  // failing, and every call site below already treats "no token
+  // configured" and "empty token" identically, so collapsing them via
+  // orElse("") costs nothing.
   @ConfigProperty(name = "payroll.admin-token")
-  String adminToken;
+  Optional<String> adminToken;
 
   /** Whether the call currently being served is admin-authenticated. */
   public static boolean isAdminAuthenticated() {
@@ -59,9 +72,10 @@ public class AdminOnlyExtendedCardInterceptor implements ServerInterceptor {
   public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
       final ServerCall<ReqT, RespT> call, final Metadata headers,
       final ServerCallHandler<ReqT, RespT> next) {
-    String expected = "Bearer " + adminToken;
+    String token = adminToken.orElse("");
+    String expected = "Bearer " + token;
     String actual = headers.get(AUTHORIZATION);
-    boolean admin = !adminToken.isEmpty() && actual != null && actual.equals(expected);
+    boolean admin = !token.isEmpty() && actual != null && actual.equals(expected);
 
     String fullMethod = call.getMethodDescriptor().getFullMethodName();
     String extendedCardMethod = A2AServiceGrpc.getGetExtendedAgentCardMethod().getFullMethodName();
