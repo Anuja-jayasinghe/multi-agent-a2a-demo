@@ -5,12 +5,15 @@ import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.a2aproject.sdk.server.ExtendedAgentCard;
 import org.a2aproject.sdk.server.PublicAgentCard;
 import org.a2aproject.sdk.spec.AgentCapabilities;
 import org.a2aproject.sdk.spec.AgentCard;
 import org.a2aproject.sdk.spec.AgentInterface;
 import org.a2aproject.sdk.spec.AgentSkill;
+import org.a2aproject.sdk.spec.HTTPAuthSecurityScheme;
+import org.a2aproject.sdk.spec.SecurityRequirement;
 import org.a2aproject.sdk.spec.TransportProtocol;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -52,6 +55,15 @@ public final class PayrollAgentCardProducer {
           .tags(List.of("payroll", "faq"))
           .examples(List.of("when is the next pay date?"))
           .build());
+
+  // The name a client resolves via securitySchemes to learn this actually
+  // means "send an HTTP Bearer token" -- matches PeopleOperations'
+  // equivalent (bearer-staff) in shape, distinct in name since the two
+  // credentials are not interchangeable. AdminOnlyExtendedCardInterceptor
+  // is what actually enforces this; declaring it here only makes it
+  // discoverable, per spec section 7.3 -- a caller reading the card
+  // before ever authenticating already knows what to present.
+  private static final String ADMIN_SCHEME = "bearer-admin";
 
   private static final AgentSkill ADMIN_SKILL = AgentSkill.builder()
       .id("adjust-other-employee-payroll")
@@ -95,6 +107,14 @@ public final class PayrollAgentCardProducer {
         .defaultInputModes(List.of("text"))
         .defaultOutputModes(List.of("text"))
         .supportedInterfaces(
-            List.of(new AgentInterface(TransportProtocol.GRPC.asString(), advertisedHost + ":" + grpcPort)));
+            List.of(new AgentInterface(TransportProtocol.GRPC.asString(), advertisedHost + ":" + grpcPort)))
+        .securitySchemes(Map.of(ADMIN_SCHEME,
+            HTTPAuthSecurityScheme.builder()
+                .scheme("Bearer")
+                .description("Admin bearer token. Required for the extended card and "
+                    + "adjust-other-employee-payroll.")
+                .build()))
+        .securityRequirements(List.of(
+            SecurityRequirement.builder().scheme(ADMIN_SCHEME, List.of()).build()));
   }
 }

@@ -17,16 +17,33 @@ import ballerina/lang.runtime;
 import ballerina/os;
 import ballerina/uuid;
 
+// Reads an env var, falling back to a default when unset or empty -- the
+// same rule os:getEnv's callers below already apply per-field for URLs,
+// pulled out once so the credential fields below don't repeat it a third
+// and fourth time.
+isolated function envOrDefault(string name, string default) returns string {
+    string value = os:getEnv(name);
+    return value != "" ? value : default;
+}
+
 type KnownAgent record {|
     string name;
     string url;
-    // Only set for agents that genuinely gate their extended AgentCard
-    // behind a real credential (Payroll's gRPC interceptor, PeopleOperations'
-    // bearer-token check) -- () for the other three, which declare no
-    // extended-card auth at all. Same demo constants already used by
-    // verification/payroll/main.bal and verification/peopleoperations/main.bal,
-    // just held server-side here instead of typed into a chat message.
-    map<string> & readonly extendedCardHeaders?;
+    // The scheme name this agent's own AgentCard declares for its
+    // extended-card gating, paired with the credential to present for it
+    // -- () for the three agents that declare no extended-card auth at
+    // all. The credential comes from the exact same env var the agent
+    // itself reads server-side (PAYROLL_ADMIN_TOKEN in
+    // application.properties, PEOPLEOPS_STAFF_TOKEN in auth.py), so client
+    // and server always agree without either hardcoding the other's
+    // value, and rotating a token means changing one env var, not two
+    // source files. Previously a literal `{"Authorization": "Bearer ..."}`
+    // header map; now the scheme name lets a2a:CredentialProvider resolve
+    // it from the card itself, the same client-side mechanism
+    // ballerina/a2a now ships (see PR #59) -- this is that mechanism's
+    // first real caller, not a parallel one.
+    // Tuple: [schemeName, credential].
+    [string, string]? extendedCardCredential?;
 |};
 
 // Local-process defaults (127.0.0.1); each is overridable via its own env
@@ -34,19 +51,19 @@ type KnownAgent record {|
 // in containerized deployment, since 127.0.0.1 inside a container refers
 // to that container itself, not a sibling one.
 final KnownAgent[] & readonly knownAgents = [
-    {name: "Parking", url: os:getEnv("PARKING_URL") != "" ? os:getEnv("PARKING_URL") : "http://127.0.0.1:8000"},
-    {name: "DigiOps", url: os:getEnv("DIGIOPS_URL") != "" ? os:getEnv("DIGIOPS_URL") : "http://127.0.0.1:8001"},
+    {name: "Parking", url: envOrDefault("PARKING_URL", "http://127.0.0.1:8000")},
+    {name: "DigiOps", url: envOrDefault("DIGIOPS_URL", "http://127.0.0.1:8001")},
     {
         name: "PeopleOperations",
-        url: os:getEnv("PEOPLEOPS_URL") != "" ? os:getEnv("PEOPLEOPS_URL") : "http://127.0.0.1:8002",
-        extendedCardHeaders: {"Authorization": "Bearer demo-staff-secret"}
+        url: envOrDefault("PEOPLEOPS_URL", "http://127.0.0.1:8002"),
+        extendedCardCredential: ["bearer-staff", envOrDefault("PEOPLEOPS_STAFF_TOKEN", "demo-staff-secret")]
     },
     {
         name: "Payroll",
-        url: os:getEnv("PAYROLL_URL") != "" ? os:getEnv("PAYROLL_URL") : "http://127.0.0.1:8003",
-        extendedCardHeaders: {"Authorization": "Bearer demo-payroll-admin-secret"}
+        url: envOrDefault("PAYROLL_URL", "http://127.0.0.1:8003"),
+        extendedCardCredential: ["bearer-admin", envOrDefault("PAYROLL_ADMIN_TOKEN", "demo-payroll-admin-secret")]
     },
-    {name: "TravelExpense", url: os:getEnv("TRAVEL_EXPENSE_URL") != "" ? os:getEnv("TRAVEL_EXPENSE_URL") : "http://127.0.0.1:8004"}
+    {name: "TravelExpense", url: envOrDefault("TRAVEL_EXPENSE_URL", "http://127.0.0.1:8004")}
 ];
 
 isolated map<a2a:Client> agentClients = {};
@@ -203,20 +220,29 @@ isolated function skillIdsOf(a2a:AgentCard card) returns string {
 // then reports the skill-count difference -- the same comparison
 // verification/payroll and verification/peopleoperations already make from
 // a terminal, just reachable from chat now too.
+//
+// The authenticated fetch goes through a2a:CredentialProvider rather than
+// a hand-built header: the credential is filed under the scheme name
+// known.extendedCardCredential carries, and the client resolves it against
+// that agent's own declared securitySchemes -- the same card-driven
+// discovery a caller with no prior knowledge of "Authorization: Bearer"
+// would go through, not a shortcut past it.
 isolated function extendedCardComparison(string agentName) returns string|error {
     KnownAgent known = check findKnownAgent(agentName);
     a2a:Client plainClient = check getAgentClient(agentName);
     a2a:AgentCard|error unauthCard = plainClient->getExtendedAgentCard();
 
-    map<string>? authHeaders = known.extendedCardHeaders;
-    if authHeaders is () {
+    [string, string]? cred = known?.extendedCardCredential;
+    if cred is () {
         if unauthCard is error {
             return string `${agentName} does not declare extended-card auth gating, and its extended card fetch failed anyway: ${unauthCard.message()}`;
         }
         return string `${agentName} declares no extended-card auth gating -- its public card already has ${unauthCard.skills.length()} skill(s): ${skillIdsOf(unauthCard)}`;
     }
 
-    a2a:Client authedClient = check new (known.url, headers = authHeaders);
+    [string, string] [schemeName, credential] = cred;
+    a2a:InMemoryCredentialStore store = new ({[schemeName]: credential});
+    a2a:Client authedClient = check new (known.url, credentials = store);
     a2a:AgentCard authedCard = check authedClient->getExtendedAgentCard();
     string unauthDesc = unauthCard is error
         ? string `rejected outright (${unauthCard.message()})`
