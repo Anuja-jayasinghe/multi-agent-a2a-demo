@@ -63,13 +63,23 @@ if [ -f "$ROOT_DIR/.env" ]; then
     set +a
 fi
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
-: "${PAYROLL_ADMIN_TOKEN:=demo-payroll-admin-secret}"
-: "${PEOPLEOPS_STAFF_TOKEN:=demo-staff-secret}"
+: "${PAYROLL_ADMIN_TOKEN:=}"
+: "${PEOPLEOPS_STAFF_TOKEN:=}"
 
 if [ -z "$ANTHROPIC_API_KEY" ]; then
     echo "Warning: ANTHROPIC_API_KEY is empty (checked .env and the environment)." >&2
     echo "The agents will start and serve their cards, but every model-backed" >&2
     echo "request will fail with an authentication error." >&2
+    echo >&2
+fi
+
+# No fallback for either token: without a real value, that agent's
+# extended-card auth gating (Payroll's AdminOnlyExtendedCardInterceptor,
+# PeopleOperations' BearerTokenContextBuilder) stays permanently closed to
+# every caller. Public skills and ordinary chat are unaffected.
+if [ -z "$PAYROLL_ADMIN_TOKEN" ] || [ -z "$PEOPLEOPS_STAFF_TOKEN" ]; then
+    echo "Note: PAYROLL_ADMIN_TOKEN and/or PEOPLEOPS_STAFF_TOKEN is unset -- see above." >&2
+    echo "Set it in .env to test case-escalation or adjust-other-employee-payroll." >&2
     echo >&2
 fi
 
