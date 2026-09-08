@@ -7,6 +7,7 @@ from a2a.server.events import EventQueue
 from a2a.server.tasks import TaskUpdater
 
 from agent import STAGED_TOOL_FLOW, PeopleOperationsAgent
+from auth import staff_authenticated
 
 # Real, staged wall-clock delay per onboarding/offboarding step.
 # provision_laptop/assign_desk/enroll_benefits and their offboarding
@@ -40,6 +41,13 @@ class PeopleOperationsAgentExecutor(AgentExecutor):
         self._agent = PeopleOperationsAgent()
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
+        # Publish this request's authenticated identity for the staff-only
+        # tool to read. Set per request, never inherited: the extended card
+        # being downgraded only hides case-escalation, it does not stop
+        # anyone who knows the skill exists from asking for it, and spec
+        # section 13.1 requires the server to authorize the request itself.
+        staff_authenticated.set(context.call_context.user.is_authenticated)
+
         query = get_message_text(context.message) or ''
 
         task = context.current_task

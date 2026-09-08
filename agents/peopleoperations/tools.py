@@ -9,9 +9,12 @@ import uuid
 
 from langchain_core.tools import tool
 
+from auth import staff_authenticated
+
 _ONBOARDING_CHECKLISTS: dict[str, dict[str, bool]] = {}
 _OFFBOARDING_CHECKLISTS: dict[str, dict[str, bool]] = {}
 _LEAVE_REQUESTS: dict[str, dict] = {}
+_ESCALATED_CASES: dict[str, dict] = {}
 
 
 @tool
@@ -124,3 +127,33 @@ def file_leave_request(employee_name: str, start_date: str, end_date: str, reaso
         'status': 'approved',
     }
     return {'request_id': request_id, 'status': 'approved'}
+
+
+@tool
+def escalate_case(employee_name: str, summary: str) -> dict:
+    """Escalates a sensitive HR case to a human case manager. Staff-only.
+
+    Args:
+        employee_name: The employee the case concerns.
+        summary: Short description of what needs escalating.
+    """
+    # The real gate. Card-level gating only controls whether this skill is
+    # *visible*; the A2A spec (section 13.1) requires servers to authorize
+    # every request, so visibility alone must not be what protects it.
+    # Anyone who knows the skill exists can ask for it, so the check has to
+    # live here, at the action.
+    if not staff_authenticated.get():
+        return {
+            'status': 'denied',
+            'reason': (
+                'Case escalation is staff-only and this request carried no '
+                'valid staff token.'
+            ),
+        }
+    case_id = uuid.uuid4().hex[:8]
+    _ESCALATED_CASES[case_id] = {
+        'employee_name': employee_name,
+        'summary': summary,
+        'status': 'escalated',
+    }
+    return {'case_id': case_id, 'status': 'escalated'}

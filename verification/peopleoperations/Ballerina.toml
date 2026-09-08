@@ -14,3 +14,13 @@ repository = "local"
 org = "ballerina"
 name = "http"
 version = "2.14.13"
+
+# Pinned deliberately — see verification/extended_card_auth/Ballerina.toml
+# for the full reasoning. Without it, fresh resolution picks grpc 1.15.0
+# against http 2.14.13 and this package dies at startup with an
+# IllegalAccessError from http's own log manager
+# (ballerina-platform/ballerina-library#2496).
+[[dependency]]
+org = "ballerina"
+name = "grpc"
+version = "1.14.7"
