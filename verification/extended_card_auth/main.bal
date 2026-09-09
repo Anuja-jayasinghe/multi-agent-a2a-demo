@@ -22,10 +22,16 @@
 
 import ballerina/a2a;
 import ballerina/io;
+import ballerina/os;
 import ballerina/uuid;
 
 const string AGENT_URL = "http://127.0.0.1:8002";
-const string STAFF_TOKEN = "demo-staff-secret";
+
+// From the same env var the agent reads — see the note in
+// verification/peopleoperations/main.bal for why this is not a constant.
+final string STAFF_TOKEN = os:getEnv("PEOPLEOPS_STAFF_TOKEN") != ""
+    ? os:getEnv("PEOPLEOPS_STAFF_TOKEN")
+    : "demo-staff-secret";
 const string GUARDED_SKILL = "case-escalation";
 const string PUBLIC_SKILL = "policy-qa";
 

@@ -54,16 +54,37 @@ public function main() returns error? {
     }
 
     // 3. Reservation resolving naturally to COMPLETED.
-    a2a:Task|a2a:Message completed = check c->sendMessage(mkMessage("reserve spot A04"));
+    //
+    // The name is required, not decoration: the agent only sets
+    // reserve_spot_id when it has a spot id AND a name (agents/parking's
+    // agent.py), so a nameless "reserve spot A04" correctly settles as
+    // INPUT_REQUIRED with a request for one. Asking without a name made
+    // this check fail for a reason that had nothing to do with the
+    // protocol — and took checks 4 and 5 down with it, since both depend
+    // on this reservation actually existing.
+    a2a:Task|a2a:Message completed = check c->sendMessage(mkMessage("reserve spot A04, my name is Nadia Perera"));
     if completed is a2a:Task && completed.status.state == a2a:TASK_STATE_COMPLETED {
         io:println("[ok] reservation resolves naturally -> COMPLETED");
     } else {
-        io:println("[FAIL] expected a completed reservation Task");
+        // Report the state and the agent's own reply: "expected a
+        // completed reservation Task" alone cannot distinguish "the spot
+        // was already taken by an earlier run" from "the agent asked a
+        // follow-up question", which are entirely different problems.
+        if completed is a2a:Task {
+            a2a:Message? statusMessage = completed.status?.message;
+            string reply = statusMessage is a2a:Message && statusMessage.parts.length() > 0
+                ? statusMessage.parts[0]?.text ?: ""
+                : "";
+            io:println("[FAIL] expected COMPLETED, got ", completed.status.state,
+                    " — agent said: ", reply);
+        } else {
+            io:println("[FAIL] expected a Task for a reservation, got a plain Message");
+        }
         failures += 1;
     }
 
     // 4. Reserving an already-taken spot -> REJECTED.
-    a2a:Task|a2a:Message rejected = check c->sendMessage(mkMessage("reserve spot A02"));
+    a2a:Task|a2a:Message rejected = check c->sendMessage(mkMessage("reserve spot A02, my name is Nadia Perera"));
     if rejected is a2a:Task && rejected.status.state == a2a:TASK_STATE_REJECTED {
         io:println("[ok] reserving a taken spot -> REJECTED");
     } else {
@@ -83,7 +104,7 @@ public function main() returns error? {
     }
 
     // 6. Push-notification config create + delete.
-    a2a:Task|a2a:Message forConfig = check c->sendMessage(mkMessage("reserve spot B01"));
+    a2a:Task|a2a:Message forConfig = check c->sendMessage(mkMessage("reserve spot B01, my name is Nadia Perera"));
     if forConfig is a2a:Task {
         a2a:TaskPushNotificationConfig created = check c->createTaskPushNotificationConfig({
             taskId: forConfig.id,
