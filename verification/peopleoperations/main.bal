@@ -13,10 +13,20 @@
 // Phase 9 once the key exists.
 import ballerina/a2a;
 import ballerina/io;
+import ballerina/os;
 import ballerina/uuid;
 
 const string AGENT_URL = "http://127.0.0.1:8002";
-const string STAFF_TOKEN = "demo-staff-secret";
+
+// Read the token from the same env var the agent itself reads, so client
+// and server agree without either hardcoding the other's value. Hardcoding
+// it here silently broke this check once .env began carrying a real
+// (non-demo) token: the agent gated on the real value while this asked
+// with "demo-staff-secret", so the extended card came back ungated and the
+// gating assertion failed for a reason that had nothing to do with gating.
+final string STAFF_TOKEN = os:getEnv("PEOPLEOPS_STAFF_TOKEN") != ""
+    ? os:getEnv("PEOPLEOPS_STAFF_TOKEN")
+    : "demo-staff-secret";
 
 public function main() returns error? {
     int failures = 0;
