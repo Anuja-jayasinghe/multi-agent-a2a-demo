@@ -12,6 +12,14 @@
 # small, bounded amount of real Anthropic quota per run once a key is
 # configured (a handful of short calls, not something that scales with
 # how often this script is run in a loop).
+#
+# Run this against a FRESHLY STARTED stack. The parking checks reserve
+# real spots (A04, B01), and the agents hold reservations in memory
+# (agents/parking/data.py seeds A02/B02 as taken at import and never
+# resets), so a second run against the same processes finds A04 already
+# booked and fails the "resolves naturally -> COMPLETED" check. That is
+# the state left over from the previous run, not a regression --
+# re-run start-all.sh before re-running this.
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
