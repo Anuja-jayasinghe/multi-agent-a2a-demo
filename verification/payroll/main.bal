@@ -16,10 +16,16 @@
 // content) is marked DEFERRED and re-run for real in Phase 9.
 import ballerina/a2a;
 import ballerina/io;
+import ballerina/os;
 import ballerina/uuid;
 
 const string AGENT_URL = "http://127.0.0.1:8003";
-const string ADMIN_TOKEN = "demo-payroll-admin-secret";
+
+// From the same env var the agent reads — see the note in
+// verification/peopleoperations/main.bal for why this is not a constant.
+final string ADMIN_TOKEN = os:getEnv("PAYROLL_ADMIN_TOKEN") != ""
+    ? os:getEnv("PAYROLL_ADMIN_TOKEN")
+    : "demo-payroll-admin-secret";
 
 public function main() returns error? {
     int failures = 0;
