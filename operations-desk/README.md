@@ -1,8 +1,8 @@
 # A2A demo: Operations Desk
 
-One A2A agent, one client that walks the protocol, and one chat service that uses the agent as a tool.
-Everything runs locally. The agent and the chat service call Anthropic (Claude Haiku 4.5), so each needs a key.
-The client does not need one.
+One A2A agent and one chat service. The chat service is both an A2A client and a Ballerina AI chat agent: it calls the
+agent as a tool from a conversation, and it exposes the whole task lifecycle as plain HTTP endpoints you can curl.
+Everything runs locally. Both programs call Anthropic (Claude Haiku 4.5), so each needs a key.
 
 ## Requirements
 
@@ -22,8 +22,7 @@ cd ballerina && bal pack && bal push --repository=local
 
 ```
 cd ops-desk-server && bal run        # A2A agent on :9090
-cd ops-chat && bal run               # chat service on :8090
-cd ops-desk-client && bal run        # prints the protocol lifecycle, then exits
+cd ops-chat && bal run               # chat service and lifecycle endpoints on :8090
 ```
 
 ## What each program shows
@@ -34,18 +33,39 @@ cd ops-desk-client && bal run        # prints the protocol lifecycle, then exits
   because none of the push operations do: the card follows the service.
 - Open `http://localhost:9090/.well-known/agent-card.json` to show the card the listener served.
 
-**ops-desk-client** (`main.bal`), numbered as it prints
-1. Discover: the card, its skills and capabilities.
-2. Ask for access without saying why: the task pauses in `TASK_STATE_INPUT_REQUIRED`.
-3. Answer on the same task: provisioning takes six seconds, then it completes with an artifact.
-4. Stream: status and artifact events arrive as they happen.
-5. `getTask` and `listTasks`.
-6. Start a task (submitted), look again after two seconds (working), then cancel it (canceled).
+**ops-chat** (`desk.bal`, `agent.bal`, `service.bal`, `lifecycle.bal`), one A2A client with two front doors on port 8090
+- `desk.bal`: the shared `a2a:HttpClient` to the agent, created on first use so the start order does not matter.
+- `agent.bal` and `service.bal`: a chat agent behind `ai:Listener`, at `POST /chat`. Its only tool, `askOperationsDesk`, calls the
+  A2A agent. If the desk pauses for input, the tool returns the question and the `taskId`, the chat agent asks the user, and the
+  next turn continues the same task. The WSO2 Integrator chat panel talks to this.
+- `lifecycle.bal`: the same client as HTTP resources under `/lifecycle`, with no model in between. See the walkthrough below.
 
-**ops-chat** (`agent.bal`, `service.bal`)
-- A chat agent behind `ai:Listener`. Its only tool, `askOperationsDesk`, calls the A2A agent through `a2a:HttpClient`.
-- If the desk pauses for input, the tool returns the question and the `taskId`, the chat agent asks the user, and the next turn
-  continues the same task.
+## Lifecycle walkthrough (curl, or Try it in WSO2 Integrator)
+
+```
+B=localhost:8090/lifecycle; J='Content-Type: application/json'
+
+curl -s $B/card                                                   # 1. discover: skills and capabilities
+
+curl -s -X POST $B/send -H "$J" \
+  -d '{"message": "Give Nimal access to the staging cloud project"}'   # 2. task pauses: TASK_STATE_INPUT_REQUIRED
+
+curl -s -X POST $B/send -H "$J" \
+  -d '{"message": "It is for the load test of the payments release", "taskId": "<id from step 2>"}'
+                                                                  # 3. same task, completes with an artifact after ~6 s
+
+curl -s -N -X POST $B/stream -H "$J" \
+  -d '{"message": "What happened to the gateway overnight?"}'     # 4. server-sent events: status and artifact updates
+
+curl -s $B/tasks                                                  # 5. listTasks
+curl -s $B/tasks/<id>                                             #    getTask
+
+curl -s -X POST $B/send -H "$J" -d '{"message": "Give Kasun access to the vpn. The reason is that he joins the on-call rotation on Monday", "returnImmediately": true}'
+curl -s $B/tasks/<id>                                             # 6. working
+curl -s -X POST $B/tasks/<id>/cancel                              #    canceled
+```
+
+An unknown task id returns 404.
 
 ## Chat prompts
 
