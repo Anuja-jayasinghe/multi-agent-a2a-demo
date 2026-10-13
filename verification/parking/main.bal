@@ -29,7 +29,7 @@ public function main() returns error? {
     io:println("=== Parking Manager Agent — real ballerina/a2a verification ===\n");
 
     // 1. sendMessage: availability Q&A, no task created.
-    a2a:Task|a2a:Message freeCheck = check c->sendMessage(mkMessage("is spot A03 free?"));
+    a2a:Task|a2a:Message freeCheck = check c->sendMessage({message: mkMessage("is spot A03 free?")});
     if freeCheck is a2a:Message {
         io:println("[ok] sendMessage (availability): ", freeCheck.parts[0]?.text ?: "");
     } else {
@@ -38,10 +38,10 @@ public function main() returns error? {
     }
 
     // 2. Reservation + cancelTask mid-flight.
-    a2a:Task|a2a:Message pending = check c->sendMessage(mkMessage("reserve spot A01"), config = {returnImmediately: true});
+    a2a:Task|a2a:Message pending = check c->sendMessage({message: mkMessage("reserve spot A01"), configuration: {returnImmediately: true}});
     if pending is a2a:Task {
         runtime:sleep(1);
-        a2a:Task cancelled = check c->cancelTask(pending.id);
+        a2a:Task cancelled = check c->cancelTask({id: pending.id});
         if cancelled.status.state == a2a:TASK_STATE_CANCELED {
             io:println("[ok] cancelTask mid-reservation -> CANCELED");
         } else {
@@ -62,7 +62,7 @@ public function main() returns error? {
     // this check fail for a reason that had nothing to do with the
     // protocol — and took checks 4 and 5 down with it, since both depend
     // on this reservation actually existing.
-    a2a:Task|a2a:Message completed = check c->sendMessage(mkMessage("reserve spot A04, my name is Nadia Perera"));
+    a2a:Task|a2a:Message completed = check c->sendMessage({message: mkMessage("reserve spot A04, my name is Nadia Perera")});
     if completed is a2a:Task && completed.status.state == a2a:TASK_STATE_COMPLETED {
         io:println("[ok] reservation resolves naturally -> COMPLETED");
     } else {
@@ -84,7 +84,7 @@ public function main() returns error? {
     }
 
     // 4. Reserving an already-taken spot -> REJECTED.
-    a2a:Task|a2a:Message rejected = check c->sendMessage(mkMessage("reserve spot A02, my name is Nadia Perera"));
+    a2a:Task|a2a:Message rejected = check c->sendMessage({message: mkMessage("reserve spot A02, my name is Nadia Perera")});
     if rejected is a2a:Task && rejected.status.state == a2a:TASK_STATE_REJECTED {
         io:println("[ok] reserving a taken spot -> REJECTED");
     } else {
@@ -94,7 +94,7 @@ public function main() returns error? {
 
     // 5. Negative case: canceling an already-terminal task must fail gracefully.
     if completed is a2a:Task {
-        a2a:Task|error afterTerminalCancel = c->cancelTask(completed.id);
+        a2a:Task|error afterTerminalCancel = c->cancelTask({id: completed.id});
         if afterTerminalCancel is error {
             io:println("[ok] canceling a terminal task correctly fails: ", afterTerminalCancel.message());
         } else {
@@ -104,7 +104,7 @@ public function main() returns error? {
     }
 
     // 6. Push-notification config create + delete.
-    a2a:Task|a2a:Message forConfig = check c->sendMessage(mkMessage("reserve spot B01, my name is Nadia Perera"));
+    a2a:Task|a2a:Message forConfig = check c->sendMessage({message: mkMessage("reserve spot B01, my name is Nadia Perera")});
     if forConfig is a2a:Task {
         a2a:TaskPushNotificationConfig created = check c->createTaskPushNotificationConfig({
             taskId: forConfig.id,
@@ -112,7 +112,7 @@ public function main() returns error? {
         });
         string? configId = created?.id;
         if configId is string {
-            check c->deleteTaskPushNotificationConfig(forConfig.id, configId);
+            check c->deleteTaskPushNotificationConfig({taskId: forConfig.id, id: configId});
             io:println("[ok] push-notification config create + delete round-trip");
         } else {
             io:println("[FAIL] created push-notification config had no id");

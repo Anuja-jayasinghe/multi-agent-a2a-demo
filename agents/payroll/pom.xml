@@ -19,11 +19,11 @@
 
         <!-- 1.x line: needed for genuine supportedInterfaces (GRPC/JSONRPC/HTTP+JSON) —
              the 0.3.2.Final io.github.a2asdk line never emits that field. -->
-        <a2a.sdk.v1.version>1.1.0.Final</a2a.sdk.v1.version>
+        <a2a.sdk.v1.version>1.4.0.Final</a2a.sdk.v1.version>
 
         <quarkus.platform.version>3.26.1</quarkus.platform.version>
         <quarkus.langchain4j.version>1.3.1</quarkus.langchain4j.version>
-        <!-- 4.34.2: the org.a2aproject.sdk 1.1.0.Final gRPC stubs are gencode'd
+        <!-- 4.34.2: the org.a2aproject.sdk 1.4.0.Final gRPC stubs are gencode'd
              against this newer protobuf runtime. Must be pinned alongside
              protobuf-java-util or JSON responses fail with
              NoSuchMethodError: JsonFormat$Printer.alwaysPrintFieldsWithNoPresence(). -->

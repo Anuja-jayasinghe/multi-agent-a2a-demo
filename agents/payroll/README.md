@@ -12,7 +12,7 @@ why.
 ## Stack
 
 Java 17 · Maven · Quarkus · [`a2a-java`](https://github.com/a2aproject/a2a-java)
-SDK 1.1.0.Final (gRPC binding) · `quarkus-langchain4j-anthropic`
+SDK 1.4.0.Final (gRPC binding) · `quarkus-langchain4j-anthropic`
 (`@RegisterAiService`) · gRPC on port **9003**, plain HTTP (agent-card
 discovery only) on port **8003**.
 
@@ -70,7 +70,7 @@ gRPC endpoint: `localhost:9003`
   (`AdminOnlyExtendedCardInterceptor`) scoped to only the
   `GetExtendedAgentCard` RPC. **This is a different shape than
   PeopleOperations's gating**: the a2a-java gRPC reference module
-  (1.1.0.Final) has no per-caller extended-card modifier hook the way the
+(1.4.0.Final) has no per-caller extended-card modifier hook the way the
   Python SDK does — confirmed by reading the SDK's own
   `GrpcHandler`/`QuarkusGrpcHandler` source, where `getExtendedAgentCard()`
   is a fixed, context-free bean lookup. So instead of serving a downgraded

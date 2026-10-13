@@ -11,7 +11,7 @@ why.
 ## Stack
 
 Java 17 · Maven · Quarkus · [`a2a-java`](https://github.com/a2aproject/a2a-java)
-SDK 1.1.0.Final (REST binding — the one agent in the demo exercising
+SDK 1.4.0.Final (REST binding — the one agent in the demo exercising
 `ballerina/a2a`'s `RestClient`) · `quarkus-langchain4j-anthropic`
 (`@RegisterAiService`) · port **8004**.
 
@@ -22,7 +22,7 @@ defaults to HTTP/2 cleartext prior-knowledge negotiation, which doesn't
 interop with Vert.x's h2c handling — every A2A operation here is over
 this same plain HTTP port, not just card discovery, so this agent would
 hit it on every call) and `protobuf-java`/`protobuf-java-util` pinned to
-`4.34.2` (the a2a-java 1.1.0.Final spec types are protobuf messages
+`4.34.2` (the a2a-java 1.4.0.Final spec types are protobuf messages
 regardless of transport, not just for gRPC — reproduced the
 `NoClassDefFoundError` once before pinning, to confirm it wasn't
 gRPC-specific).

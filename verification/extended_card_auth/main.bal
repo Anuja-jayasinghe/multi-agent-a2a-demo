@@ -76,7 +76,7 @@ function replyText(a2a:Client agent, string text) returns string|error {
         role: a2a:ROLE_USER,
         parts: [{text: text}]
     };
-    a2a:Task|a2a:Message reply = check agent->sendMessage(request);
+    a2a:Task|a2a:Message reply = check agent->sendMessage({message: request});
     if reply is a2a:Message {
         return reply.parts.toString();
     }
@@ -86,7 +86,8 @@ function replyText(a2a:Client agent, string text) returns string|error {
     if statusMessage is a2a:Message {
         collected += statusMessage.parts.toString();
     }
-    foreach a2a:Artifact artifact in task.artifacts {
+    a2a:Artifact[] artifacts = task.artifacts ?: [];
+    foreach a2a:Artifact artifact in artifacts {
         collected += artifact.parts.toString();
     }
     return collected;
@@ -112,15 +113,17 @@ public function main() returns error? {
 
     check_(card.capabilities.extendedAgentCard,
             "agent declares an extended card exists");
-    check_(card.securitySchemes.length() > 0,
+    map<a2a:SecurityScheme> cardSchemes = card.securitySchemes ?: {};
+    a2a:SecurityRequirement[] cardRequirements = card.securityRequirements ?: [];
+    check_(cardSchemes.length() > 0,
             "public card declares securitySchemes",
-            card.securitySchemes.keys().toString());
+            cardSchemes.keys().toString());
     // This is the real v1.0 wire form: {"schemes": {"bearer-staff": {}}}.
     // It parsed as [] before the parser fix, which silently made every
     // check below impossible.
-    check_(card.securityRequirements.length() > 0,
+    check_(cardRequirements.length() > 0,
             "card-level securityRequirements parse from the real v1.0 wire form",
-            card.securityRequirements.toString());
+            cardRequirements.toString());
     check_(!card.skills.some(s => s.id == GUARDED_SKILL),
             "guarded skill is absent from the public card");
 
@@ -136,12 +139,13 @@ public function main() returns error? {
     check_(!anonExtended.skills.some(s => s.id == GUARDED_SKILL),
             "unauthenticated extended card is downgraded, guarded skill withheld",
             anonExtended.skills.length().toString() + " skills");
-    check_(anonExtended.securitySchemes.length() > 0,
+    map<a2a:SecurityScheme> anonSchemes = anonExtended.securitySchemes ?: {};
+    check_(anonSchemes.length() > 0,
             "downgraded card still names the credential that would unlock more",
-            anonExtended.securitySchemes.keys().toString());
+            anonSchemes.keys().toString());
 
     a2a:SecurityRequirement[] publicNeeds = check a2a:skillSecurityRequirements(card, PUBLIC_SKILL);
-    check_(publicNeeds == card.securityRequirements,
+    check_(publicNeeds == cardRequirements,
             "a skill declaring nothing inherits the card-level requirement",
             publicNeeds.toString());
 
@@ -153,7 +157,7 @@ public function main() returns error? {
     // 3. resolveSecuritySchemes — turning a name into something usable.
     // ----------------------------------------------------------------
     io:println("\n-- 3. Resolving the scheme name to a concrete kind --");
-    a2a:SecurityRequirement requirement = card.securityRequirements[0];
+    a2a:SecurityRequirement requirement = cardRequirements[0];
     map<a2a:SecurityScheme> resolved = check a2a:resolveSecuritySchemes(card, requirement);
     check_(resolved.length() == 1, "requirement resolves to exactly one scheme");
 
@@ -262,7 +266,7 @@ public function main() returns error? {
         role: a2a:ROLE_USER,
         parts: [{text: "how many annual leave days do I have?"}]
     };
-    a2a:Task|a2a:Message|error reply = staff->sendMessage(msg);
+    a2a:Task|a2a:Message|error reply = staff->sendMessage({message: msg});
     if reply is a2a:Task {
         check_(!a2a:isAuthorizationRequired(reply),
                 "isAuthorizationRequired is false for a task the agent did not gate",

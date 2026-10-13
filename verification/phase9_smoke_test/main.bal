@@ -33,8 +33,9 @@ function extractText(a2a:Task|a2a:Message result) returns string {
         return joinParts(result.parts);
     } else if result is a2a:Task {
         a2a:Task task = result;
-        if task.artifacts.length() > 0 {
-            return joinParts(task.artifacts[task.artifacts.length() - 1].parts);
+        a2a:Artifact[] artifacts = task.artifacts ?: [];
+        if artifacts.length() > 0 {
+            return joinParts(artifacts[artifacts.length() - 1].parts);
         }
         a2a:Message? statusMessage = task.status?.message;
         if statusMessage is a2a:Message {
@@ -63,21 +64,18 @@ function consumeStream(stream<a2a:StreamResponse, error?> s) returns StreamOutco
             return item;
         }
         a2a:StreamResponse sr = item.value;
-        a2a:TaskStatusUpdateEvent? su = sr?.statusUpdate;
-        if su is a2a:TaskStatusUpdateEvent {
-            finalState = su.status.state.toString();
-            a2a:Message? m = su.status?.message;
+        if sr is a2a:TaskStatusUpdateEvent {
+            finalState = sr.status.state.toString();
+            a2a:Message? m = sr.status.message;
             if m is a2a:Message {
                 chunks.push(joinParts(m.parts));
             }
         }
-        a2a:TaskArtifactUpdateEvent? au = sr?.artifactUpdate;
-        if au is a2a:TaskArtifactUpdateEvent {
-            chunks.push(joinParts(au.artifact.parts));
+        if sr is a2a:TaskArtifactUpdateEvent {
+            chunks.push(joinParts(sr.artifact.parts));
         }
-        a2a:Message? mm = sr?.message;
-        if mm is a2a:Message {
-            chunks.push(joinParts(mm.parts));
+        if sr is a2a:Message {
+            chunks.push(joinParts(sr.parts));
         }
     }
     check s.close();
@@ -89,24 +87,24 @@ public function main() returns error? {
 
     // 1. DigiOps FAQ
     a2a:Client digiops = check new ("http://127.0.0.1:8001");
-    a2a:Task|a2a:Message faq = check digiops->sendMessage(mkMessage("what's the password policy?"));
+    a2a:Task|a2a:Message faq = check digiops->sendMessage({message: mkMessage("what's the password policy?")});
     io:println("[1] DigiOps FAQ:\n", extractText(faq), "\n");
 
     // 2. DigiOps incident (streaming)
     stream<a2a:StreamResponse, error?> incidentStream = check digiops->sendStreamingMessage(
-        mkMessage("I can't reach the internal wiki, is there an outage?"));
+        {message: mkMessage("I can't reach the internal wiki, is there an outage?")} );
     StreamOutcome incidentOutcome = check consumeStream(incidentStream);
     io:println("[2] DigiOps incident — final state: ", incidentOutcome.finalState ?: "?",
             "\n", incidentOutcome.collectedText, "\n");
 
     // 3. PeopleOperations FAQ
     a2a:Client peopleOps = check new ("http://127.0.0.1:8002");
-    a2a:Task|a2a:Message hrFaq = check peopleOps->sendMessage(mkMessage("how many annual leave days do I get?"));
+    a2a:Task|a2a:Message hrFaq = check peopleOps->sendMessage({message: mkMessage("how many annual leave days do I get?")});
     io:println("[3] PeopleOperations FAQ:\n", extractText(hrFaq), "\n");
 
     // 4. PeopleOperations onboarding (streaming, real tool calls)
     stream<a2a:StreamResponse, error?> onboardingStream = check peopleOps->sendStreamingMessage(
-        mkMessage("please start onboarding for a new hire named Nadeesha Perera"));
+        {message: mkMessage("please start onboarding for a new hire named Nadeesha Perera")});
     StreamOutcome onboardingOutcome = check consumeStream(onboardingStream);
     io:println("[4] PeopleOperations onboarding — final state: ", onboardingOutcome.finalState ?: "?",
             "\n", onboardingOutcome.collectedText, "\n");
@@ -114,13 +112,13 @@ public function main() returns error? {
     // 5. Payroll payslip correction (gRPC, real tool call)
     a2a:Client payroll = check new ("http://127.0.0.1:8003");
     a2a:Task|a2a:Message correction = check payroll->sendMessage(
-        mkMessage("my payslip shows the wrong tax deduction, please file a correction"));
+        {message: mkMessage("my payslip shows the wrong tax deduction, please file a correction")});
     io:println("[5] Payroll correction:\n", extractText(correction), "\n");
 
     // 6. Travel & Expense claim (REST, real tool call)
     a2a:Client travel = check new ("http://127.0.0.1:8004");
     a2a:Task|a2a:Message claim = check travel->sendMessage(
-        mkMessage("I need to claim LKR 8000 for a client dinner in Colombo"));
+        {message: mkMessage("I need to claim LKR 8000 for a client dinner in Colombo")});
     io:println("[6] Travel & Expense claim:\n", extractText(claim), "\n");
 
     io:println("=== smoke test complete — see docs/DEMO_SCRIPT.md for RESULT annotations ===");

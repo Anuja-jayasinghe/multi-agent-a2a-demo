@@ -52,7 +52,7 @@ public function main() returns error? {
     // happen first), and its real ID is named in the error — captured
     // below to drive the push-notification CRUD checks against a real task.
     a2a:Message msg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "my payslip shows the wrong tax deduction"}]};
-    a2a:Task|a2a:Message|error sendResult = agent->sendMessage(msg);
+    a2a:Task|a2a:Message|error sendResult = agent->sendMessage({message: msg});
     string? taskId = ();
     if sendResult is error {
         io:println("[ok] sendMessage fails gracefully without a real key: ", sendResult.message());
@@ -75,7 +75,7 @@ public function main() returns error? {
     string realTaskId = taskId;
 
     // 3. getTask/cancelTask genuinely round-trip over gRPC.
-    a2a:Task|error getResult = agent->getTask(realTaskId);
+    a2a:Task|error getResult = agent->getTask({id: realTaskId});
     if getResult is a2a:Task {
         io:println("[ok] getTask resolves the real task, state: ", getResult.status.state);
     } else {
@@ -83,7 +83,7 @@ public function main() returns error? {
         failures += 1;
     }
 
-    a2a:Task|error cancelOnMissing = agent->cancelTask("nonexistent-task-id");
+    a2a:Task|error cancelOnMissing = agent->cancelTask({id: "nonexistent-task-id"});
     if cancelOnMissing is error {
         io:println("[ok] cancelTask on a nonexistent task fails gracefully: ", cancelOnMissing.message());
     } else {
@@ -98,11 +98,12 @@ public function main() returns error? {
         taskId: realTaskId
     });
     string configId = created?.id ?: "";
-    a2a:TaskPushNotificationConfig fetched = check agent->getTaskPushNotificationConfig(realTaskId, configId);
-    a2a:ListTaskPushNotificationConfigsResult listed = check agent->listTaskPushNotificationConfigs(realTaskId);
-    check agent->deleteTaskPushNotificationConfig(realTaskId, configId);
-    a2a:TaskPushNotificationConfig|error afterDelete = agent->getTaskPushNotificationConfig(realTaskId, configId);
-    if fetched.url == created.url && listed.configs.length() == 1 && afterDelete is error {
+    a2a:TaskPushNotificationConfig fetched = check agent->getTaskPushNotificationConfig({taskId: realTaskId, id: configId});
+    a2a:ListTaskPushNotificationConfigsResponse listed = check agent->listTaskPushNotificationConfigs({taskId: realTaskId});
+    check agent->deleteTaskPushNotificationConfig({taskId: realTaskId, id: configId});
+    a2a:TaskPushNotificationConfig|error afterDelete = agent->getTaskPushNotificationConfig({taskId: realTaskId, id: configId});
+    a2a:TaskPushNotificationConfig[] configs = listed.configs ?: [];
+    if fetched.url == created.url && configs.length() == 1 && afterDelete is error {
         io:println("[ok] push-notification config CRUD round-trips for real: create, get, list, delete all confirmed");
     } else {
         io:println("[FAIL] push-notification config CRUD did not behave as expected");

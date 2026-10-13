@@ -64,7 +64,7 @@ public function main() returns error? {
     // proving the whole LangGraph -> A2A -> ballerina/a2a pipeline is wired
     // correctly end to end. [DEFERRED to Phase 9 for the actual answer.]
     a2a:Message msg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "how many annual leave days do I have?"}]};
-    a2a:Task|a2a:Message|error result = unauth->sendMessage(msg);
+    a2a:Task|a2a:Message|error result = unauth->sendMessage({message: msg});
     if result is error {
         io:println("[ok] policy Q&A fails gracefully without a real key: ", result.message());
     } else {

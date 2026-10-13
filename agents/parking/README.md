@@ -14,7 +14,7 @@ deterministic Python.
 
 ## Stack
 
-Python 3.12 · `uv` · [`a2a-sdk`](https://pypi.org/project/a2a-sdk/) 1.1.0 ·
+Python 3.12 · `uv` · [`a2a-sdk`](https://pypi.org/project/a2a-sdk/) 1.2.1 ·
 [Google ADK](https://google.github.io/adk-docs/) + real Anthropic backing ·
 REST (HTTP+JSON) binding · port 8000.
 
