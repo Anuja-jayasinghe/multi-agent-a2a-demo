@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Parking Manager Agent — A2A listener agent, Google ADK + real Anthropic backing, REST binding"
 requires-python = ">=3.12"
 dependencies = [
-    "a2a-sdk==1.1.0",
+    "a2a-sdk==1.2.1",
     "uvicorn",
     "sse-starlette",
     "google-adk[a2a]>=1.25.1",

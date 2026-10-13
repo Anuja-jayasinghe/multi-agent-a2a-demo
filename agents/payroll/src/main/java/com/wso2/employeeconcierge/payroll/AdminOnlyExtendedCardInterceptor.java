@@ -16,7 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 /**
  * Gates only the GetExtendedAgentCard RPC behind a real bearer-token check.
  *
- * <p>The a2a-java gRPC reference module (1.1.0.Final) has no per-request
+ * <p>The a2a-java gRPC reference module (1.4.0.Final) has no per-request
  * extended-card modifier hook the way the Python SDK does — its
  * getExtendedAgentCard() is a fixed, context-free bean lookup (confirmed
  * by reading GrpcHandler/QuarkusGrpcHandler source). So rather than
