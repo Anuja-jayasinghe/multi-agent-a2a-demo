@@ -117,7 +117,7 @@ isolated function joinPartsText(a2a:Part[] parts) returns string {
 }
 
 isolated function taskText(a2a:Task task) returns string {
-    a2a:Artifact[] artifacts = task.artifacts;
+    a2a:Artifact[] artifacts = task.artifacts ?: [];
     if artifacts.length() > 0 {
         return joinPartsText(artifacts[artifacts.length() - 1].parts);
     }
@@ -190,14 +190,17 @@ isolated function pollUntilSettled(a2a:Client agentClient, a2a:Task initial) ret
             elapsed += POLL_INTERVAL_SECONDS;
         }
         first = false;
-        task = check agentClient->getTask(task.id);
+        task = check agentClient->getTask({id: task.id});
     }
     return task;
 }
 
 isolated function sendToAgent(a2a:Client agentClient, string message) returns string|error {
     a2a:Message msg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: message}]};
-    a2a:Task|a2a:Message result = check agentClient->sendMessage(msg, config = {returnImmediately: true});
+    a2a:Task|a2a:Message result = check agentClient->sendMessage({
+        message: msg,
+        configuration: {returnImmediately: true}
+    });
     if result is a2a:Task {
         a2a:Task settled = check pollUntilSettled(agentClient, result);
         return extractResponseText(settled);
@@ -206,17 +209,17 @@ isolated function sendToAgent(a2a:Client agentClient, string message) returns st
 }
 
 isolated function cancelTaskOn(a2a:Client agentClient, string taskId) returns string|error {
-    a2a:Task result = check agentClient->cancelTask(taskId);
+    a2a:Task result = check agentClient->cancelTask({id: taskId});
     return summarizeTask(result);
 }
 
 isolated function getTaskStatusOn(a2a:Client agentClient, string taskId) returns string|error {
-    a2a:Task result = check agentClient->getTask(taskId);
+    a2a:Task result = check agentClient->getTask({id: taskId});
     return summarizeTask(result);
 }
 
 isolated function listTasksOn(a2a:Client agentClient) returns string|error {
-    a2a:ListTasksResult result = check agentClient->listTasks();
+    a2a:ListTasksResponse result = check agentClient->listTasks();
     return summarizeTasks(result.tasks);
 }
 

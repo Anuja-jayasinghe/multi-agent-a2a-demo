@@ -133,7 +133,7 @@ public function main() returns error? {
 
     future<a2a:Task|a2a:Message|error>[] loadFutures = [];
     foreach int i in 0 ..< 20 {
-        future<a2a:Task|a2a:Message|error> f = start parking->sendMessage(mkMessage("is spot A01 available?"));
+        future<a2a:Task|a2a:Message|error> f = start parking->sendMessage({message: mkMessage("is spot A01 available?")});
         loadFutures.push(f);
     }
     int loadOk = 0;
@@ -173,7 +173,7 @@ public function main() returns error? {
     foreach int i in 0 ..< 30 {
         a2a:RestClient|error freshClient = new (parkingCard);
         if freshClient is a2a:RestClient {
-            a2a:Task|a2a:Message|error r = freshClient->sendMessage(mkMessage("is spot A02 available?"));
+            a2a:Task|a2a:Message|error r = freshClient->sendMessage({message: mkMessage("is spot A02 available?")});
             if r is a2a:Task || r is a2a:Message {
                 freshClientOk += 1;
             }

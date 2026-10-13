@@ -39,7 +39,7 @@ public function main() returns error? {
     // hang, not crash — proving the whole ADK -> A2A -> ballerina/a2a
     // pipeline is wired correctly end to end. [DEFERRED to Phase 9 for the
     // actual answer content.]
-    a2a:Task|a2a:Message|error faqResult = c->sendMessage(mkMessage("how do I connect to the VPN?"));
+    a2a:Task|a2a:Message|error faqResult = c->sendMessage({message: mkMessage("how do I connect to the VPN?")});
     if faqResult is error {
         io:println("[ok] FAQ request fails gracefully without a real key: ", faqResult.message());
     } else {
@@ -49,7 +49,7 @@ public function main() returns error? {
     // 3. Streaming mechanics: real events, real mid-stream disconnect, real
     // subscribeToTask reconnect. [Final diagnosis content DEFERRED to Phase 9.]
     stream<a2a:StreamResponse, error?> s = check c->sendStreamingMessage(
-        mkMessage("incident: my laptop cannot reach the internal network")
+        {message: mkMessage("incident: my laptop cannot reach the internal network")}
     );
     int count = 0;
     string? taskId = ();
@@ -58,9 +58,9 @@ public function main() returns error? {
         if item is () || item is error {
             break;
         }
-        a2a:Task? t = item.value?.task;
-        if t is a2a:Task {
-            taskId = t.id;
+        a2a:StreamResponse event = item.value;
+        if event is a2a:Task {
+            taskId = event.id;
         }
         count += 1;
     }
@@ -73,7 +73,7 @@ public function main() returns error? {
     }
 
     if taskId is string {
-        stream<a2a:StreamResponse, error?> resumed = check c->subscribeToTask(taskId);
+        stream<a2a:StreamResponse, error?> resumed = check c->subscribeToTask({id: taskId});
         record {|a2a:StreamResponse value;|}|error? first = resumed.next();
         check resumed.close();
         if first is record {|a2a:StreamResponse value;|} {

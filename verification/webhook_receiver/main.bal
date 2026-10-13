@@ -13,7 +13,7 @@
 // then run this script from this directory: bal run --sticky
 //
 // A real, reproducible finding from building this test, documented rather
-// than worked around: a2a-java (1.1.0.Final) registers an inline
+// than worked around: a2a-java (1.4.0.Final) registers an inline
 // taskPushNotificationConfig (sent in the same sendMessage call) only
 // after consuming the FIRST event back from the executor — see
 // DefaultRequestHandler.onMessageSend, the
@@ -68,9 +68,9 @@ public function main() returns error? {
     a2a:AgentCard parkingCard = check a2a:resolveAgentCard("http://127.0.0.1:8000");
     a2a:RestClient parking = check new (parkingCard);
     a2a:Message reserveMsg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "reserve A02"}]};
-    a2a:Task|a2a:Message parkingResult = check parking->sendMessage(reserveMsg, config = {
-        returnImmediately: true,
-        taskPushNotificationConfig: {url: WEBHOOK_URL, token: "parking-check"}
+    a2a:Task|a2a:Message parkingResult = check parking->sendMessage({
+        message: reserveMsg,
+        configuration: {returnImmediately: true, taskPushNotificationConfig: {url: WEBHOOK_URL, token: "parking-check"}}
     });
     string parkingTaskId = parkingResult is a2a:Task ? parkingResult.id : "";
     io:println("[parking] real task created: ", parkingTaskId, " — waiting for the ~4s reservation flow to finish...");
@@ -91,9 +91,9 @@ public function main() returns error? {
     while attempt < 5 && !payrollDelivered {
         attempt += 1;
         a2a:Message payrollMsg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "when is the next pay date?"}]};
-        a2a:Task|a2a:Message|error r = payroll->sendMessage(payrollMsg, config = {
-            returnImmediately: true,
-            taskPushNotificationConfig: {url: WEBHOOK_URL, token: "payroll-check"}
+        a2a:Task|a2a:Message|error r = payroll->sendMessage({
+            message: payrollMsg,
+            configuration: {returnImmediately: true, taskPushNotificationConfig: {url: WEBHOOK_URL, token: "payroll-check"}}
         });
         if r is a2a:Task {
             runtime:sleep(5);
@@ -116,9 +116,9 @@ public function main() returns error? {
     while attempt < 5 && !travelDelivered {
         attempt += 1;
         a2a:Message travelMsg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "what's the per-diem rate?"}]};
-        a2a:Task|a2a:Message|error r = travel->sendMessage(travelMsg, config = {
-            returnImmediately: true,
-            taskPushNotificationConfig: {url: WEBHOOK_URL, token: "travel-check"}
+        a2a:Task|a2a:Message|error r = travel->sendMessage({
+            message: travelMsg,
+            configuration: {returnImmediately: true, taskPushNotificationConfig: {url: WEBHOOK_URL, token: "travel-check"}}
         });
         if r is a2a:Task {
             runtime:sleep(5);

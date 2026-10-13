@@ -42,7 +42,7 @@ public function main() returns error? {
     // named in the error — captured below to drive push-notification
     // config CRUD against a real task.
     a2a:Message msg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "I need to claim LKR 12000 for a client dinner in Colombo"}]};
-    a2a:Task|a2a:Message|error sendResult = agent->sendMessage(msg);
+    a2a:Task|a2a:Message|error sendResult = agent->sendMessage({message: msg});
     string? taskId = ();
     if sendResult is error {
         io:println("[ok] sendMessage fails gracefully without a real key: ", sendResult.message());
@@ -65,7 +65,7 @@ public function main() returns error? {
     string realTaskId = taskId;
 
     // 3. getTask/cancelTask genuinely round-trip over REST.
-    a2a:Task|error getResult = agent->getTask(realTaskId);
+    a2a:Task|error getResult = agent->getTask({id: realTaskId});
     if getResult is a2a:Task {
         io:println("[ok] getTask resolves the real task, state: ", getResult.status.state);
     } else {
@@ -73,7 +73,7 @@ public function main() returns error? {
         failures += 1;
     }
 
-    a2a:Task|error cancelOnMissing = agent->cancelTask("nonexistent-task-id");
+    a2a:Task|error cancelOnMissing = agent->cancelTask({id: "nonexistent-task-id"});
     if cancelOnMissing is error {
         io:println("[ok] cancelTask on a nonexistent task fails gracefully: ", cancelOnMissing.message());
     } else {
@@ -88,7 +88,7 @@ public function main() returns error? {
         url: "http://127.0.0.1:9999/webhook",
         taskId: realTaskId
     });
-    a2a:TaskPushNotificationConfig fetched = check agent->getTaskPushNotificationConfig(realTaskId, created?.id ?: "");
+    a2a:TaskPushNotificationConfig fetched = check agent->getTaskPushNotificationConfig({taskId: realTaskId, id: created?.id ?: ""});
     if fetched.url == created.url {
         io:println("[ok] push-notification config create+get round-trips for real");
     } else {

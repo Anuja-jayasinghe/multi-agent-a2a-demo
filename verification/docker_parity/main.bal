@@ -44,7 +44,7 @@ public function main() returns error? {
     a2a:AgentCard parkingCard = check a2a:resolveAgentCard("http://parking:8000");
     a2a:RestClient parking = check new (parkingCard);
     a2a:Message msg = {messageId: uuid:createType4AsString(), role: a2a:ROLE_USER, parts: [{text: "is spot A01 available?"}]};
-    a2a:Task|a2a:Message|error result = parking->sendMessage(msg);
+    a2a:Task|a2a:Message|error result = parking->sendMessage({message: msg});
     if result is error {
         io:println("[FAIL] sendMessage against containerized Parking failed: ", result.message());
         failures += 1;
