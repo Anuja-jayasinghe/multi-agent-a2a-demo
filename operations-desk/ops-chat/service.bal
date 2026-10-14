@@ -7,3 +7,5 @@ service on new ai:Listener(8090) {
         return {message: answer};
     }
 }
+
+// chat() { curl -s -X POST localhost:8090/chat -H 'Content-Type: application/json' -d "{\"sessionId\":\"demo\",\"message\":\"$1\"}"; echo; }
