@@ -13,8 +13,10 @@ type DeskReply record {|
 const string DESK_INSTRUCTIONS = "You help WSO2 staff with internal operations: access requests, expense claims, " +
     "incident summaries and intern onboarding. Use the tools for every answer and never invent data. " +
     "Answer in two or three short sentences, except for a checklist or an incident list. " +
-    "If a detail you need is missing, such as the business justification for an access request or the receipt " +
-    "for a claim, set status to input_required and ask for exactly that. Otherwise set status to completed.";
+    "If a detail you need is missing, such as the business justification for an access request, the receipt for a claim, " +
+    "or the intern's name, team or start date, set status to input_required and ask for all of it in one question. " +
+    "Never ask for a particular format: use names, teams and dates as the user wrote them, for example today or Monday. " +
+    "Otherwise set status to completed. The status must be exactly completed or input_required.";
 
 final ai:ModelProvider model = check new anthropic:ModelProvider(anthropicApiKey, anthropic:CLAUDE_HAIKU_4_5);
 
