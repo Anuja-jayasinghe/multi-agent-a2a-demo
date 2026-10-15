@@ -24,34 +24,34 @@ final a2a:DefaultHandler handler = new (new OperationsDesk());
         supportedInterfaces: []
     }
 }
-isolated service /rest on new a2a:HttpListener(9090) {
+isolated service on new a2a:RestListener(9090) {
 
-    isolated remote function onSendMessage(a2a:Context context, a2a:SendMessageRequest request)
+    isolated resource function post message\:send(a2a:Context context, a2a:SendMessageRequest request)
             returns a2a:Task|a2a:Message|a2a:Error {
         return handler.sendMessage(context, request);
     }
 
-    isolated remote function onSendStreamingMessage(a2a:Context context, a2a:SendMessageRequest request)
+    isolated resource function post message\:stream(a2a:Context context, a2a:SendMessageRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
         return handler.sendStreamingMessage(context, request);
     }
 
-    isolated remote function onSubscribeToTask(a2a:Context context, a2a:SubscribeToTaskRequest request)
+    isolated resource function get tasks/[string id]/subscribe(a2a:Context context, a2a:SubscribeToTaskRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
         return handler.subscribeToTask(context, request);
     }
 
-    isolated remote function onGetTask(a2a:Context context, a2a:GetTaskRequest request)
+    isolated resource function get tasks/[string id](a2a:Context context, a2a:GetTaskRequest request)
             returns a2a:Task|a2a:Error {
         return handler.getTask(context, request);
     }
 
-    isolated remote function onListTasks(a2a:Context context, a2a:ListTasksRequest request)
+    isolated resource function get tasks(a2a:Context context, a2a:ListTasksRequest request)
             returns a2a:ListTasksResponse|a2a:Error {
         return handler.listTasks(context, request);
     }
 
-    isolated remote function onCancelTask(a2a:Context context, a2a:CancelTaskRequest request)
+    isolated resource function post tasks/[string id]/cancel(a2a:Context context, a2a:CancelTaskRequest request)
             returns a2a:Task|a2a:Error {
         return handler.cancelTask(context, request);
     }
