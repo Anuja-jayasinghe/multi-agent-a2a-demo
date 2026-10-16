@@ -31,7 +31,8 @@ cd ops-chat && bal run               # agent-backed A2A client (chat service) on
 
 **ops-desk-server** (`agent.bal`, `tools.bal`, `service.bal`)
 - The agent logic is an `a2a:AgentExecutor`. It runs an `ai:Agent` and reports through the `a2a:TaskUpdater`.
-- The service defines six operations. Streaming is on because both streaming operations exist, push notifications are off
+- Two services share one `http:Listener` on :9090: resource functions on an `a2a:RestListener` (`/rest`) and remote functions on an `a2a:JsonRpcListener` (`/rpc`). The card lists both interfaces.
+- Each service defines six operations. Streaming is on because both streaming operations exist, push notifications are off
   because none of the push operations do: the card follows the service.
 - Open `http://localhost:9090/.well-known/agent-card.json` to show the card the listener served.
 

@@ -36,7 +36,7 @@ public function main() returns error? {
             role: a2a:ROLE_USER,
             parts: [{text: "onboard " + name + " as a new hire"}]
         };
-        future<a2a:Task|a2a:Message|error> f = start agent->sendMessage(msg, config = {returnImmediately: true});
+        future<a2a:Task|a2a:Message|error> f = start agent->sendMessage({message: msg, configuration: {returnImmediately: true}});
         futures.push(f);
     }
 
@@ -52,7 +52,7 @@ public function main() returns error? {
     }
 
     io:println("\n=== listTasks proves all ", taskIds.length(), " are independently tracked, not one shared job ===");
-    a2a:ListTasksResult listed = check agent->listTasks();
+    a2a:ListTasksResponse listed = check agent->listTasks();
     string[] knownIds = from a2a:Task t in listed.tasks select t.id;
     int foundCount = taskIds.filter(id => knownIds.indexOf(id) is int).length();
     io:println(foundCount, "/", taskIds.length(), " of this run's own task ids confirmed present ",
@@ -64,19 +64,19 @@ public function main() returns error? {
 
     io:println("\n=== cancel the first one mid-flight -- the other ", taskIds.length() - 1, " keep going, untouched ===");
     string canceledId = taskIds[0];
-    a2a:Task canceled = check agent->cancelTask(canceledId);
+    a2a:Task canceled = check agent->cancelTask({id: canceledId});
     io:println(NAMES[0], "'s task (", canceledId, ") -> ", canceled.status.state);
 
     io:println("\n=== poll the rest independently through to real completion ===");
     foreach int i in 1 ..< taskIds.length() {
         string tid = taskIds[i];
-        a2a:Task t = check agent->getTask(tid);
+        a2a:Task t = check agent->getTask({id: tid});
         int polls = 0;
         while t.status.state != a2a:TASK_STATE_COMPLETED
                 && t.status.state != a2a:TASK_STATE_FAILED
                 && polls < 60 {
             runtime:sleep(1);
-            t = check agent->getTask(tid);
+            t = check agent->getTask({id: tid});
             polls += 1;
         }
         io:println(NAMES[i], "'s task (", tid, ") -> ", t.status.state, " (", polls, " polls)");
