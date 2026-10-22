@@ -35,18 +35,18 @@ isolated class OperationsDesk {
 
     public isolated function execute(a2a:RequestContext context, a2a:TaskUpdater updater)
             returns a2a:Message|a2a:Error? {
-        check updater->working();
+        check updater.working();
         DeskReply|ai:Error reply = deskAgent.run(textOf(context.message), sessionId = updater.getContextId());
         if reply is ai:Error {
-            check updater->failed(agentMessage(reply.message()));
+            check updater.failed(agentMessage(reply.message()));
             return;
         }
         if reply.status == "input_required" {
-            check updater->requireInput(agentMessage(reply.message));
+            check updater.requireInput(agentMessage(reply.message));
             return;
         }
-        check updater->addArtifact([{text: reply.message}], name = "answer");
-        check updater->complete();
+        check updater.addArtifact([{text: reply.message}], name = "answer");
+        check updater.complete();
         return;
     }
 }
