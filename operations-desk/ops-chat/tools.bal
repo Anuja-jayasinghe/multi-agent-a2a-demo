@@ -4,7 +4,7 @@ import ballerina/uuid;
 
 configurable string deskUrl = "http://localhost:9090";
 
-final a2a:HttpClient desk = check new (deskUrl);
+final a2a:RestClient desk = check new (deskUrl);
 
 type DeskTask record {|
     string taskId;

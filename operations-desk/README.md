@@ -37,7 +37,7 @@ cd ops-chat && bal run               # agent-backed A2A client (chat service) on
 - Open `http://localhost:9090/.well-known/agent-card.json` to show the card the listener served.
 
 **ops-chat** (`tools.bal`, `agent.bal`, `service.bal`, `modules/a2atoolkit/`), the A2A client, backed by an agent on port 8090
-- `tools.bal`: the one `a2a:HttpClient` for the desk and five `@ai:AgentTool` functions over it: `askOperationsDesk` (`sendMessage`, with
+- `tools.bal`: the one `a2a:RestClient` for the desk and five `@ai:AgentTool` functions over it: `askOperationsDesk` (`sendMessage`, with
   `inBackground` for `returnImmediately`), `streamFromOperationsDesk`, `getDeskTask`, `listDeskTasks` and `cancelDeskTask`.
 - `agent.bal`: the chat agent (Claude Haiku 4.5) with those tools. `service.bal`: the `ai:Listener` chat service at `POST /chat`,
   which the WSO2 Integrator chat panel talks to.

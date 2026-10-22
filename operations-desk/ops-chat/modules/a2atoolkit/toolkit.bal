@@ -33,7 +33,7 @@
 // variables identically.
 //
 // Second revision: rebuilt against the current ballerina/a2a 0.1.0 client
-// API (`a2a:HttpClient`, request-record calls -- `a2a:Client` is
+// API (`a2a:RestClient`, request-record calls -- `a2a:Client` is
 // package-private by design, see client.bal's own doc comment) instead of
 // the original 0.2.1 prototype's `a2a:Client`/positional-argument API,
 // which the published 0.2.1 bala no longer matches either. Adds task
@@ -43,7 +43,7 @@
 // reachable; without it there was no way to pass `http:ClientConfiguration`
 // through at all.
 //
-// `connect` is the one place that names `a2a:HttpClient` -- the seam a
+// `connect` is the one place that names `a2a:RestClient` -- the seam a
 // JSON-RPC or gRPC client plugs into once the library speaks those
 // bindings, with nothing else in this file changing.
 
@@ -98,10 +98,10 @@ public isolated class A2aToolKit {
     # client has nowhere readonly-safe to keep the `http:ClientConfiguration`
     # it was built from (that type isn't Cloneable), so it has to be built
     # while that config is still a local, in scope, rather than
-    # reconstructed lazily from stored state later. `a2a:HttpClient` is
+    # reconstructed lazily from stored state later. `a2a:RestClient` is
     # itself an isolated client type, so holding one as `final` object state
     # needs no `lock` to read.
-    private final a2a:HttpClient agentClient;
+    private final a2a:RestClient agentClient;
 
     # + agent - The agent's base URL, or an already-resolved `a2a:AgentCard`.
     #           Pass a card when you already hold one -- from
@@ -156,7 +156,7 @@ public isolated class A2aToolKit {
                 + string `declares no security scheme to file it under.`);
         }
 
-        a2a:HttpClient|error agentClient = connect(card, schemeName, secret, clientConfig);
+        a2a:RestClient|error agentClient = connect(card, schemeName, secret, clientConfig);
         if agentClient is error {
             return error ai:Error(string `could not connect to agent "${name}" (${agentClient.message()})`);
         }
@@ -416,7 +416,7 @@ final decimal POLL_INTERVAL_SECONDS = 0.5d;
 # fetching it again -- and a caller-supplied, signature-verified card stays
 # the card actually used.
 isolated function connect(a2a:AgentCard card, string? schemeName, string? secret,
-        http:ClientConfiguration clientConfig) returns a2a:HttpClient|error {
+        http:ClientConfiguration clientConfig) returns a2a:RestClient|error {
     if schemeName is string && secret is string {
         a2a:InMemoryCredentialStore store = new ({[schemeName]: secret});
         return new (card, clientConfig = clientConfig, credentials = store);
