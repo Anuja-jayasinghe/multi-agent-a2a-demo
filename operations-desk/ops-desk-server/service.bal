@@ -33,32 +33,32 @@ isolated service on deskRest {
 
     isolated resource function post message\:send(a2a:Context context, a2a:SendMessageRequest request)
             returns a2a:Task|a2a:Message|a2a:Error {
-        return handler.onSendMessage(context, request);
+        return handler.handleSendMessage(context, request);
     }
 
     isolated resource function post message\:stream(a2a:Context context, a2a:SendMessageRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
-        return handler.onSendStreamingMessage(context, request);
+        return handler.handleSendStreamingMessage(context, request);
     }
 
     isolated resource function get tasks/[string id]/subscribe(a2a:Context context, a2a:SubscribeToTaskRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
-        return handler.onSubscribeToTask(context, request);
+        return handler.handleSubscribeToTask(context, request);
     }
 
     isolated resource function get tasks/[string id](a2a:Context context, a2a:GetTaskRequest request)
             returns a2a:Task|a2a:Error {
-        return handler.onGetTask(context, request);
+        return handler.handleGetTask(context, request);
     }
 
     isolated resource function get tasks(a2a:Context context, a2a:ListTasksRequest request)
             returns a2a:ListTasksResponse|a2a:Error {
-        return handler.onListTasks(context, request);
+        return handler.handleListTasks(context, request);
     }
 
     isolated resource function post tasks/[string id]/cancel(a2a:Context context, a2a:CancelTaskRequest request)
             returns a2a:Task|a2a:Error {
-        return handler.onCancelTask(context, request);
+        return handler.handleCancelTask(context, request);
     }
 }
 
@@ -88,31 +88,31 @@ isolated service on deskRpc {
 
     isolated remote function sendMessage(a2a:Context context, a2a:SendMessageRequest request)
             returns a2a:Task|a2a:Message|a2a:Error {
-        return handler.onSendMessage(context, request);
+        return handler.handleSendMessage(context, request);
     }
 
     isolated remote function sendStreamingMessage(a2a:Context context, a2a:SendMessageRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
-        return handler.onSendStreamingMessage(context, request);
+        return handler.handleSendStreamingMessage(context, request);
     }
 
     isolated remote function subscribeToTask(a2a:Context context, a2a:SubscribeToTaskRequest request)
             returns stream<a2a:StreamResponse, a2a:Error?>|a2a:Error {
-        return handler.onSubscribeToTask(context, request);
+        return handler.handleSubscribeToTask(context, request);
     }
 
     isolated remote function getTask(a2a:Context context, a2a:GetTaskRequest request)
             returns a2a:Task|a2a:Error {
-        return handler.onGetTask(context, request);
+        return handler.handleGetTask(context, request);
     }
 
     isolated remote function listTasks(a2a:Context context, a2a:ListTasksRequest request)
             returns a2a:ListTasksResponse|a2a:Error {
-        return handler.onListTasks(context, request);
+        return handler.handleListTasks(context, request);
     }
 
     isolated remote function cancelTask(a2a:Context context, a2a:CancelTaskRequest request)
             returns a2a:Task|a2a:Error {
-        return handler.onCancelTask(context, request);
+        return handler.handleCancelTask(context, request);
     }
 }
