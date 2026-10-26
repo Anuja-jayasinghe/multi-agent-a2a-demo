@@ -19,3 +19,4 @@ repository = "local"
 
 [build-options]
 sticky = true
+observabilityIncluded = true
