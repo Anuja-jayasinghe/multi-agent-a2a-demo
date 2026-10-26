@@ -1,0 +1,21 @@
+[package]
+org = "scratch"
+name = "recipe"
+version = "0.1.0"
+distribution = "2201.13.5"
+title = "Recipe Helper"
+
+[[dependency]]
+org = "wso2"
+name = "a2a_toolkit"
+version = "0.1.0"
+repository = "local"
+
+[[dependency]]
+org = "ballerina"
+name = "a2a"
+version = "0.1.0"
+repository = "local"
+
+[build-options]
+sticky = true
