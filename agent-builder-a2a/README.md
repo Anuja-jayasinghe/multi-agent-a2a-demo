@@ -11,7 +11,13 @@ branch `demo/a2a-agent-builder`, never pushed upstream). Each folder is a Baller
 | `desserts` | Agent only | Fresh agent used to try publishing from the UI. |
 | `tripplanner`, `concierge` | Server and client | The first pair, from before the UI work. |
 
-## Run
+## Run an agent and see its card
+
+Double-click `Run Recipe Agent (show card).command`, or run `./run-agent.sh [package]` (default `recipe`). It builds the package,
+starts it, prints the Agent Card it serves and opens `http://localhost:9096/.well-known/agent-card.json` in the browser. The card needs
+no model call, so a placeholder key is enough; if `a2a-library-testing/.env` holds a key it is used. Ctrl+C stops the agent.
+
+## Run it by hand
 
 Put a model key in each package's `Config.toml` (gitignored): `anthropicApiKey = "..."`, or use `BAL_CONFIG_DATA`.
 

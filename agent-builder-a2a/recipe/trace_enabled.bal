@@ -1,0 +1,1 @@
+import ballerinax/idetraceprovider as _;
